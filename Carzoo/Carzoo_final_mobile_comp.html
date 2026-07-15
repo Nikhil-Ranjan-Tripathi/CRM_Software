@@ -1,0 +1,2164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+    <title>CARZOO CRM — Brown & Gold Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        /* === BRAND COLORS (brown + gold) === */
+        :root {
+            --brand-bg: #F7F3EC;
+            --brand-dark: #3E2C1B;
+            --brand-muted: #6B5A44;
+            --brand-gold: #C9A96E;
+            --brand-gold-light: #E8D5B0;
+            --card-shadow: 0 6px 18px rgba(62, 44, 27, 0.08);
+        }
+        body { background-color: var(--brand-bg); font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        
+        /* === LOGIN OVERLAY === */
+        #loginOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #3E2C1B 0%, #5C4833 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease, visibility 0.5s ease;
+        }
+        #loginOverlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .login-box {
+            background: white;
+            border-radius: 32px;
+            padding: 48px 40px;
+            max-width: 440px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            animation: slideIn 0.4s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .brand-icon {
+            background: var(--brand-gold);
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+        }
+        .brand-icon i {
+            font-size: 32px;
+            color: #2D241A;
+        }
+        .form-input {
+            transition: all 0.2s;
+            border: 2px solid #E5DCD0;
+            border-radius: 14px;
+            padding: 12px 16px;
+            width: 100%;
+            background: #FAF8F5;
+            font-size: 15px;
+            box-sizing: border-box;
+        }
+        .form-input:focus {
+            border-color: var(--brand-gold);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(201, 169, 110, 0.2);
+            background: white;
+        }
+        .form-input.error {
+            border-color: #C94A4A;
+            background: #FFF5F5;
+        }
+        .btn-primary {
+            background: var(--brand-dark);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            padding: 14px;
+            font-weight: 700;
+            font-size: 16px;
+            width: 100%;
+            transition: 0.2s;
+            cursor: pointer;
+        }
+        .btn-primary:hover {
+            background: #2D241A;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(62, 44, 27, 0.2);
+        }
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 10000;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+            padding: 14px 24px;
+            border-left: 6px solid var(--brand-gold);
+            font-weight: 500;
+            color: #2D241A;
+            max-width: 400px;
+            animation: slideIn 0.3s ease;
+        }
+        .toast-error { border-left-color: #C94A4A; }
+        .toast-success { border-left-color: #2B7A4B; }
+        .toast-info { border-left-color: var(--brand-gold); }
+        .hidden { display: none !important; }
+        
+        /* === SIDEBAR & DASHBOARD STYLES === */
+        .sidebar-item {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 14px;
+            margin: 4px 14px;
+            padding: 10px 16px;
+            color: #4B3A28;
+            font-weight: 500;
+        }
+        .sidebar-item:hover { background-color: #EDE6DC; }
+        .active-sidebar {
+            background-color: var(--brand-dark) !important;
+            color: white !important;
+            box-shadow: 0 4px 10px rgba(62, 44, 27, 0.25);
+        }
+        .workspace { transition: all 0.25s ease; overflow: hidden; }
+        .workspace.collapsed { max-height: 0; padding: 0; opacity: 0; margin: 0; }
+        .workspace.expanded { max-height: 800px; opacity: 1; padding: 16px; }
+        .workspace-edit { transition: all 0.25s ease; overflow: hidden; }
+        .workspace-edit.collapsed { max-height: 0; padding: 0; opacity: 0; margin: 0; }
+        .workspace-edit.expanded { max-height: 2200px; opacity: 1; padding: 16px; }
+        .rotated { transform: rotate(180deg); transition: transform 0.2s; }
+        .btn-gold {
+            background-color: var(--brand-gold);
+            color: #2D241A;
+            transition: 0.2s;
+            font-weight: 600;
+        }
+        .btn-gold:hover { background-color: #B8985E; }
+        .brand-header {
+            background: linear-gradient(145deg, #3E2C1B 0%, #5C4833 100%);
+        }
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white; border-radius: 28px; max-width: 550px; width: 90%;
+            max-height: 85vh; overflow-y: auto; padding: 24px;
+        }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .checkbox-option {
+            display: flex; align-items: center; gap: 6px; background: #F3EFE8;
+            padding: 5px 14px; border-radius: 40px; cursor: pointer; font-size: 12px;
+            transition: 0.15s;
+        }
+        .checkbox-option:has(input:checked) {
+            background: var(--brand-gold);
+            color: #2D241A;
+        }
+        .status-badge {
+            display: inline-block; padding: 4px 14px; border-radius: 999px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .empty-state { text-align: center; padding: 60px 20px; color: #9ca3af; }
+        .customer-tab-btn.active {
+            background-color: var(--brand-dark) !important;
+            color: white !important;
+        }
+        .refresh-spin { animation: spin 0.5s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .lead-row { cursor: pointer; transition: background 0.15s; position: relative; }
+        .lead-row:hover { background-color: #F9F5EE; }
+        .form-select, .form-textarea {
+            transition: all 0.2s;
+            border: 1px solid #D6CDBF;
+            border-radius: 12px;
+            padding: 10px 14px;
+            width: 100%;
+            background: white;
+        }
+        .form-select:focus, .form-textarea:focus {
+            border-color: var(--brand-gold);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(201, 169, 110, 0.3);
+        }
+        .followup-highlight { background-color: #FCF8EF; border-left: 4px solid var(--brand-gold); }
+        .followup-overdue { background-color: #FDF2F0; border-left: 4px solid #C94A4A; }
+        .notification-badge {
+            position: absolute; top: 10px; left: 10px; width: 24px; height: 24px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 10;
+            animation: pulse 1.5s infinite;
+        }
+        .badge-red { background-color: #C94A4A; }
+        .badge-green { background-color: #2B7A4B; }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .btn-export-followup {
+            background-color: #C94A4A;
+            color: white;
+            transition: all 0.2s;
+        }
+        .btn-export-followup:hover { background-color: #A53636; transform: scale(1.02); }
+        .stat-card {
+            background: white;
+            border-radius: 20px;
+            padding: 20px 16px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid #EFE8DE;
+        }
+        .stat-card .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .lead-type-card {
+            border-radius: 20px;
+            padding: 18px 12px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid #EFE8DE;
+            background: white;
+        }
+        .input-group { position: relative; }
+        .input-group .toggle-password {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #999;
+            background: none;
+            border: none;
+            font-size: 18px;
+            padding: 4px;
+        }
+        .input-group .toggle-password:hover { color: var(--brand-dark); }
+        .password-strength {
+            height: 4px;
+            border-radius: 2px;
+            margin-top: 6px;
+            transition: 0.3s;
+            background: #E5DCD0;
+        }
+        .password-strength.weak { background: #C94A4A; width: 33%; }
+        .password-strength.medium { background: #F59E0B; width: 66%; }
+        .password-strength.strong { background: #2B7A4B; width: 100%; }
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--brand-dark);
+            margin-bottom: 4px;
+        }
+        .form-hint {
+            font-size: 12px;
+            color: var(--brand-muted);
+            margin-top: 4px;
+        }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--brand-gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--brand-dark);
+        }
+        .admin-badge {
+            background: var(--brand-gold);
+            color: var(--brand-dark);
+            padding: 2px 12px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+        .logout-btn {
+            background: transparent;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 12px;
+            padding: 6px 16px;
+            font-size: 13px;
+            font-weight: 600;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.5);
+        }
+        .checkbox-custom {
+            width: 20px;
+            height: 20px;
+            accent-color: var(--brand-dark);
+            cursor: pointer;
+        }
+        #mainContent { display: none; }
+        #mainContent.visible { display: block; }
+
+        /* Admin Panel Styles */
+        .admin-user-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px 20px;
+            border: 1px solid #EFE8DE;
+            transition: 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .admin-user-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .admin-user-card .user-details { flex: 1; }
+        .admin-user-card .user-details .name {
+            font-weight: 600;
+            color: var(--brand-dark);
+        }
+        .admin-user-card .user-details .username {
+            font-size: 13px;
+            color: var(--brand-muted);
+        }
+        .admin-user-card .user-details .badge {
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: 999px;
+            margin-left: 8px;
+        }
+        .admin-user-card .user-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .admin-user-card .user-actions button {
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-edit { background: var(--brand-gold); color: var(--brand-dark); }
+        .btn-edit:hover { background: #B8985E; }
+        .btn-delete { background: #C94A4A; color: white; }
+        .btn-delete:hover { background: #A53636; }
+        .btn-make-admin { background: #2B7A4B; color: white; }
+        .btn-make-admin:hover { background: #1F5E38; }
+        .btn-remove-admin { background: #F59E0B; color: white; }
+        .btn-remove-admin:hover { background: #D97706; }
+        .btn-add-user { background: var(--brand-dark); color: white; }
+        .btn-add-user:hover { background: #2D241A; }
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .admin-stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 16px 20px;
+            border: 1px solid #EFE8DE;
+            text-align: center;
+        }
+        .admin-stat-card .number {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--brand-dark);
+        }
+        .admin-stat-card .label {
+            font-size: 13px;
+            color: var(--brand-muted);
+        }
+        .admin-section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--brand-dark);
+            margin-bottom: 16px;
+        }
+        .admin-header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .btn-edit-toggle {
+            background: var(--brand-gold);
+            color: var(--brand-dark);
+            padding: 4px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-edit-toggle:hover { background: #B8985E; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN OVERLAY -->
+<div id="loginOverlay">
+    <div class="login-box">
+        <div class="brand-icon"><i class="fas fa-car-side"></i></div>
+        <h1 class="text-2xl font-bold text-center text-[#3E2C1B]">CARZOO CRM</h1>
+        <p class="text-center text-[#6B5A44] text-sm mb-6">Customer Relationship Management</p>
+        <form id="loginForm" onsubmit="return handleLogin(event)">
+            <div class="space-y-4">
+                <div>
+                    <label class="form-label">Username</label>
+                    <input type="text" id="loginUsername" required class="form-input" placeholder="Enter your username" autocomplete="username" />
+                </div>
+                <div>
+                    <label class="form-label">Password</label>
+                    <div class="input-group">
+                        <input type="password" id="loginPassword" required class="form-input" placeholder="Enter your password" autocomplete="current-password" />
+                        <button type="button" class="toggle-password" onclick="togglePasswordVisibility('loginPassword', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" id="loginBtn" class="btn-primary">
+                    <i class="fas fa-arrow-right-to-bracket mr-2"></i> Sign In
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- MAIN CONTENT -->
+<div id="mainContent">
+
+    <!-- HEADER -->
+    <div class="brand-header shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="bg-[#C9A96E] rounded-xl w-10 h-10 flex items-center justify-center">
+                    <i class="fas fa-car-side text-2xl text-[#2D241A]"></i>
+                </div>
+                <div>
+                    <div class="text-white font-bold text-xl tracking-tight">CARZOO CRM</div>
+                    <div class="text-[#DBCBAA] text-xs font-medium">Social · Walk-in · Call</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="user-info text-white">
+                    <div class="user-avatar" id="userAvatar">A</div>
+                    <div>
+                        <div class="text-sm font-semibold" id="userNameDisplay">User</div>
+                        <div class="text-xs text-[#DBCBAA]">
+                            <span id="userRoleDisplay">User</span>
+                            <span class="admin-badge hidden" id="adminBadge">Admin</span>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="logoutUser()" class="logout-btn">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Logout
+                </button>
+                <button id="exportExcelBtn" class="px-4 py-1.5 bg-[#2B7A4B] text-white rounded-xl text-sm hover:bg-[#1F5E38] transition shadow-sm flex items-center gap-1">
+                    <i class="fas fa-file-excel mr-1"></i> Export All
+                </button>
+                <button id="refreshBtn" class="px-4 py-1.5 bg-[#6B5A44] text-white rounded-xl text-sm hover:bg-[#4B3A28] transition shadow-sm flex items-center gap-1">
+                    <i id="refreshIcon" class="fas fa-sync-alt mr-1"></i> Sync
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN LAYOUT -->
+    <div class="flex max-w-7xl mx-auto">
+        <!-- SIDEBAR -->
+        <div id="sidebar" class="w-64 bg-white min-h-screen border-r border-[#E5DCD0] shrink-0">
+            <nav class="py-6">
+                <div onclick="showPage('dashboard')" id="nav-dashboard" class="sidebar-item flex items-center gap-3 active-sidebar">
+                    <i class="fas fa-chart-line w-5"></i><span>Dashboard</span>
+                </div>
+                <div onclick="showPage('customerData')" id="nav-customerData" class="sidebar-item flex items-center gap-3">
+                    <i class="fas fa-users w-5"></i><span>Customer Data</span>
+                </div>
+                <div onclick="showPage('followups')" id="nav-followups" class="sidebar-item flex items-center gap-3">
+                    <i class="fas fa-calendar-day w-5"></i><span>Follow-ups (Today)</span>
+                </div>
+                <div id="adminNavItem" class="hidden">
+                    <div class="border-t my-4 mx-4 border-[#E5DCD0]"></div>
+                    <div onclick="showPage('admin')" id="nav-admin" class="sidebar-item flex items-center gap-3">
+                        <i class="fas fa-shield-alt w-5 text-[#C9A96E]"></i><span>Admin Panel</span>
+                    </div>
+                </div>
+                <div class="border-t my-4 mx-4 border-[#E5DCD0]"></div>
+                <div class="px-4 py-2 text-xs text-[#8A7A66] uppercase tracking-wider font-semibold">Quick Actions</div>
+                <div class="px-4 py-2">
+                    <button onclick="openNewLeadModal('Walk-in')" class="w-full bg-[#6B5A44] hover:bg-[#4B3A28] text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition flex items-center justify-center gap-2">
+                        <i class="fas fa-door-open"></i> New Walk-in
+                    </button>
+                </div>
+                <div class="px-4 py-2">
+                    <button onclick="openNewLeadModal('Call')" class="w-full bg-[#6B5A44] hover:bg-[#4B3A28] text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition flex items-center justify-center gap-2">
+                        <i class="fas fa-phone"></i> New Call Lead
+                    </button>
+                </div>
+            </nav>
+        </div>
+
+        <!-- CONTENT -->
+        <div class="flex-1 p-5">
+            <!-- DASHBOARD -->
+            <div id="dashboardPage">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                    <div class="stat-card"><p class="text-[#6B5A44] text-sm font-medium">Total Leads</p><p id="totalLeads" class="stat-value text-[#3E2C1B]">0</p></div>
+                    <div class="stat-card"><p class="text-[#6B5A44] text-sm font-medium">Active</p><p id="activeLeads" class="stat-value text-[#2B6B8A]">0</p></div>
+                    <div class="stat-card"><p class="text-[#6B5A44] text-sm font-medium">Pick Rate</p><p id="pickRate" class="stat-value text-[#2B7A4B]">0%</p></div>
+                    <div class="stat-card"><p class="text-[#6B5A44] text-sm font-medium">Converted</p><p id="convertedCount" class="stat-value text-[#7A4B8A]">0</p></div>
+                    <div class="stat-card"><p class="text-[#6B5A44] text-sm font-medium">Lost</p><p id="lostCount" class="stat-value text-[#C94A4A]">0</p></div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                    <div class="lead-type-card text-center"><div class="text-2xl font-bold text-[#3E2C1B]" id="socialCount">0</div><div class="text-sm text-[#6B5A44]">📱 Social Media</div></div>
+                    <div class="lead-type-card text-center"><div class="text-2xl font-bold text-[#3E2C1B]" id="walkinCount">0</div><div class="text-sm text-[#6B5A44]">🚪 Walk-in</div></div>
+                    <div class="lead-type-card text-center"><div class="text-2xl font-bold text-[#3E2C1B]" id="callCount">0</div><div class="text-sm text-[#6B5A44]">📞 Call</div></div>
+                    <div class="lead-type-card text-center border-2 border-[#C9A96E] bg-[#FCF8EF]">
+                        <div class="text-2xl font-bold text-[#8B5E3C]" id="followupCount">0</div>
+                        <div class="text-sm text-[#6B5A44]">⏰ Follow-ups Due</div>
+                        <div class="text-xs text-[#8A7A66] mt-1">Today + Overdue</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CUSTOMER DATA -->
+            <div id="customerDataPage" class="hidden">
+                <div class="bg-white rounded-2xl shadow-md border border-[#EFE8DE] overflow-hidden">
+                    <div class="border-b border-[#EFE8DE] p-4 bg-[#FAF7F1]">
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="setCustomerTab('social')" id="tabSocial" class="customer-tab-btn px-5 py-2 rounded-xl text-sm font-medium bg-[#EDE6DC] hover:bg-[#DDD2C2] transition">📱 Social Media</button>
+                            <button onclick="setCustomerTab('walkin')" id="tabWalkin" class="customer-tab-btn px-5 py-2 rounded-xl text-sm font-medium bg-[#EDE6DC] hover:bg-[#DDD2C2] transition">🚪 Walk-in</button>
+                            <button onclick="setCustomerTab('call')" id="tabCall" class="customer-tab-btn px-5 py-2 rounded-xl text-sm font-medium bg-[#EDE6DC] hover:bg-[#DDD2C2] transition">📞 Call</button>
+                        </div>
+                    </div>
+                    <div id="customerContent" class="p-5"></div>
+                </div>
+            </div>
+
+            <!-- FOLLOW-UPS -->
+            <div id="followupsPage" class="hidden">
+                <div class="bg-white rounded-2xl shadow-md border border-[#EFE8DE]">
+                    <div class="p-5 border-b border-[#EFE8DE] bg-[#FCF8EF] flex justify-between items-center flex-wrap gap-3">
+                        <div>
+                            <h2 class="text-xl font-bold text-[#3E2C1B]">⏰ Follow-ups</h2>
+                            <p class="text-sm text-[#6B5A44]"><span id="todayDateDisplay"></span> — Calls due today & overdue from yesterday</p>
+                        </div>
+                        <button id="exportFollowupBtn" class="px-5 py-2 btn-export-followup rounded-xl text-sm font-semibold shadow-sm transition flex items-center gap-2">
+                            <i class="fas fa-file-excel"></i> Export Follow-ups
+                        </button>
+                    </div>
+                    <div id="followupsList" class="divide-y divide-[#EFE8DE]"></div>
+                </div>
+            </div>
+
+            <!-- ADMIN PANEL -->
+            <div id="adminPage" class="hidden">
+                <div class="bg-white rounded-2xl shadow-md border border-[#EFE8DE] p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold text-[#3E2C1B]">Admin Panel</h2>
+                            <p class="text-sm text-[#6B5A44]">Manage users, roles, and permissions</p>
+                        </div>
+                        <div class="admin-header-actions">
+                            <button onclick="openAddUserModal()" class="px-4 py-2 btn-add-user rounded-xl text-sm font-semibold transition">
+                                <i class="fas fa-user-plus mr-1"></i> Add User
+                            </button>
+                            <button onclick="loadUsers()" class="px-4 py-2 bg-[#6B5A44] hover:bg-[#4B3A28] text-white rounded-xl text-sm font-semibold transition">
+                                <i class="fas fa-sync-alt mr-1"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                    <div class="admin-stats" id="adminStats">
+                        <div class="admin-stat-card"><div class="number" id="totalUsers">0</div><div class="label">Total Users</div></div>
+                        <div class="admin-stat-card"><div class="number" id="adminCount">0</div><div class="label">Admins</div></div>
+                        <div class="admin-stat-card"><div class="number" id="regularUsers">0</div><div class="label">Regular Users</div></div>
+                    </div>
+                    <div class="admin-section-title">All Users</div>
+                    <div id="usersList" class="space-y-3">
+                        <div class="text-center text-[#6B5A44] py-8">
+                            <i class="fas fa-spinner fa-spin text-2xl"></i>
+                            <p class="mt-2">Loading users...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- NEW LEAD MODAL -->
+    <div id="newLeadModal" class="modal hidden" onclick="if(event.target===this) closeModal()">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-[#3E2C1B]" id="modalTitle">New Record</h3>
+                <button onclick="closeModal()" class="text-[#6B5A44] text-xl hover:text-[#3E2C1B]">✕</button>
+            </div>
+            <form id="newLeadForm" class="space-y-4">
+                <input type="hidden" id="newLeadType" />
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Full Name *</label><input type="text" id="newName" required class="form-input" /></div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Contact Number *</label><input type="tel" id="newPhone" required class="form-input" /></div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Vehicle Model</label><input type="text" id="newVehicle" class="form-input" /></div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Service Interested</label>
+                    <select id="newService" class="form-select"><option value="">Select</option><option>PPF</option><option>Ceramic Coating</option><option>Detailing</option><option>Wrap</option><option>Tinting</option></select>
+                </div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Vehicle Age (Months)</label><input type="number" id="newVehicleAge" class="form-input" /></div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Quoted Amount (₹)</label><input type="number" id="newQuotedAmount" class="form-input" /></div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Customer Budget</label>
+                    <select id="newBudget" class="form-select"><option value="">Select</option><option>₹10,000-25,000</option><option>₹25,000-50,000</option><option>₹50,000-75,000</option><option>₹75,000-1,00,000</option><option>₹1,00,000+</option></select>
+                </div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Notes</label><textarea id="newNotes" rows="2" class="form-textarea"></textarea></div>
+                <button type="submit" class="w-full py-3 bg-[#3E2C1B] hover:bg-[#2D241A] text-white rounded-xl font-bold transition shadow-sm">➕ Create Lead</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- EDIT USER MODAL -->
+    <div id="editUserModal" class="modal hidden" onclick="if(event.target===this) closeEditModal()">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-[#3E2C1B]">✏️ Edit User</h3>
+                <button onclick="closeEditModal()" class="text-[#6B5A44] text-xl hover:text-[#3E2C1B]">✕</button>
+            </div>
+            <form id="editUserForm" class="space-y-4">
+                <input type="hidden" id="editUserId" />
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Full Name</label><input type="text" id="editUserName" required class="form-input" /></div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Username</label><input type="text" id="editUserUsername" required class="form-input" /></div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">New Password (leave blank to keep current)</label><input type="password" id="editUserPassword" class="form-input" placeholder="Enter new password" minlength="6" /></div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Confirm Password</label><input type="password" id="editUserConfirmPassword" class="form-input" placeholder="Confirm new password" /></div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="editUserIsAdmin" class="checkbox-custom" />
+                    <label for="editUserIsAdmin" class="text-sm text-[#6B5A44]">Admin Privileges</label>
+                </div>
+                <button type="submit" class="w-full py-3 bg-[#3E2C1B] hover:bg-[#2D241A] text-white rounded-xl font-bold transition shadow-sm">
+                    <i class="fas fa-save mr-2"></i> Save Changes
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ADD USER MODAL -->
+    <div id="addUserModal" class="modal hidden" onclick="if(event.target===this) closeAddUserModal()">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-[#3E2C1B]">➕ Add New User</h3>
+                <button onclick="closeAddUserModal()" class="text-[#6B5A44] text-xl hover:text-[#3E2C1B]">✕</button>
+            </div>
+            <form id="addUserForm" class="space-y-4">
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Full Name *</label><input type="text" id="addUserName" required class="form-input" placeholder="Enter full name" /></div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Username *</label><input type="text" id="addUserUsername" required class="form-input" placeholder="Choose a username" minlength="3" /></div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Password *</label>
+                    <div class="input-group">
+                        <input type="password" id="addUserPassword" required class="form-input" placeholder="Min 6 characters" minlength="6" />
+                        <button type="button" class="toggle-password" onclick="togglePasswordVisibility('addUserPassword', this)">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div><label class="text-sm font-semibold text-[#3E2C1B]">Confirm Password *</label><input type="password" id="addUserConfirmPassword" required class="form-input" placeholder="Confirm password" /></div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" id="addUserIsAdmin" class="checkbox-custom" />
+                    <label for="addUserIsAdmin" class="text-sm text-[#6B5A44]">Give Admin Privileges</label>
+                </div>
+                <button type="submit" class="w-full py-3 bg-[#3E2C1B] hover:bg-[#2D241A] text-white rounded-xl font-bold transition shadow-sm">
+                    <i class="fas fa-user-plus mr-2"></i> Create User
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+//  CONFIG – UPDATE THESE URLS WITH YOUR ACTUAL DEPLOYMENTS
+// ============================================================
+const AUTH_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxZiQ6XFrgxFax3Py-zLh5tLqCGbJXoD1SFu66mqhlLh_QcAwxcsm1ykdvKoVyrXh96/exec";
+const SOCIAL_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwuvAvrKDct8k5ml0_ZPDVgLTUhzmi4KBxIpUounuzqJElPCC25AcVI2lfmK1kxT45b/exec";
+const WALKIN_CALL_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzGPFE25SYroXDQVydctVLG4LR_dAOmygVN49mMeisjJO3MaL8p4g-XvhAO0LS2wJWojw/exec";
+// ============================================================
+
+let currentUser = null;
+let isSubmitting = false;
+let allUsers = [];
+
+// ============================================================
+// LOGIN SYSTEM
+// ============================================================
+
+function md5Hash(str) {
+  const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, str);
+  return digest.map(b => ('0' + (b & 0xFF).toString(16)).slice(-2)).join('');
+}
+
+function togglePasswordVisibility(inputId, button) {
+    const input = document.getElementById(inputId);
+    const icon = button.querySelector('i');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    }
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('toast');
+    const icon = type === 'error' ? 'fa-exclamation-circle' : 
+                 type === 'success' ? 'fa-check-circle' : 'fa-info-circle';
+    toast.innerHTML = `<i class="fas ${icon} mr-2"></i> ${message}`;
+    toast.className = `toast toast-${type}`;
+    toast.classList.remove('hidden');
+    clearTimeout(toast._timeout);
+    toast._timeout = setTimeout(() => toast.classList.add('hidden'), 4000);
+}
+
+async function handleLogin(event) {
+    event.preventDefault();
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    if (!username || !password) {
+        showToast('Please enter both username and password', 'error');
+        return false;
+    }
+    const hashedPassword = CryptoJS.MD5(password).toString();
+    isSubmitting = true;
+    document.getElementById('loginBtn').disabled = true;
+    document.getElementById('loginBtn').innerHTML = '<span class="loading-spinner"></span> Processing...';
+    try {
+        const url = `${AUTH_WEB_APP_URL}?action=login&username=${encodeURIComponent(username)}&password=${encodeURIComponent(hashedPassword)}`;
+        const response = await fetch(url);
+        const result = await response.json();
+        if (result.status === 'success') {
+            currentUser = result.user;
+            localStorage.setItem('crm_user', JSON.stringify(currentUser));
+            showToast(`Welcome ${currentUser.name}!`, 'success');
+            setTimeout(() => {
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('mainContent').classList.add('visible');
+                updateUserUI();
+                loadAllData(true);
+                showPage('dashboard');
+            }, 500);
+        } else {
+            showToast(result.message || 'Login failed', 'error');
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        showToast('Connection error. Please try again.', 'error');
+    } finally {
+        isSubmitting = false;
+        document.getElementById('loginBtn').disabled = false;
+        document.getElementById('loginBtn').innerHTML = '<i class="fas fa-arrow-right-to-bracket mr-2"></i> Sign In';
+    }
+    return false;
+}
+
+function logoutUser() {
+    localStorage.removeItem('crm_user');
+    currentUser = null;
+    document.getElementById('mainContent').classList.remove('visible');
+    document.getElementById('loginOverlay').classList.remove('hidden');
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+    showToast('Logged out successfully', 'success');
+}
+window.logoutUser = logoutUser;
+
+function updateUserUI() {
+    if (!currentUser) return;
+    const avatar = document.getElementById('userAvatar');
+    const nameDisplay = document.getElementById('userNameDisplay');
+    const roleDisplay = document.getElementById('userRoleDisplay');
+    const adminBadge = document.getElementById('adminBadge');
+    const adminNavItem = document.getElementById('adminNavItem');
+    avatar.textContent = currentUser.name.charAt(0).toUpperCase();
+    nameDisplay.textContent = currentUser.name;
+    roleDisplay.textContent = currentUser.isAdmin ? 'Admin' : 'User';
+    if (currentUser.isAdmin) {
+        adminBadge.classList.remove('hidden');
+        adminNavItem.classList.remove('hidden');
+    } else {
+        adminBadge.classList.add('hidden');
+        adminNavItem.classList.add('hidden');
+    }
+}
+
+function checkAutoLogin() {
+    const userData = localStorage.getItem('crm_user');
+    if (userData) {
+        try {
+            currentUser = JSON.parse(userData);
+            document.getElementById('loginOverlay').classList.add('hidden');
+            document.getElementById('mainContent').classList.add('visible');
+            updateUserUI();
+            loadAllData(true);
+            showPage('dashboard');
+            showToast(`Welcome back, ${currentUser.name}!`, 'success');
+        } catch (e) {
+            localStorage.removeItem('crm_user');
+        }
+    }
+}
+
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>]/g, function(m) {
+        if (m === '&') return '&amp;';
+        if (m === '<') return '&lt;';
+        if (m === '>') return '&gt;';
+        return m;
+    });
+}
+
+function cleanPhoneNumber(p) {
+    if (!p) return '';
+    return String(p).replace(/[^\d]/g, '');
+}
+
+// ============================================================
+// ADMIN FUNCTIONS
+// ============================================================
+
+async function loadUsers() {
+    if (!currentUser) {
+        showToast('You are not logged in.', 'error');
+        return;
+    }
+    if (!currentUser.isAdmin) {
+        showToast('Admin access required.', 'error');
+        return;
+    }
+    if (!currentUser.id) {
+        showToast('Admin ID is missing. Please log out and log in again.', 'error');
+        console.error('currentUser.id is undefined!', currentUser);
+        return;
+    }
+
+    try {
+        const url = `${AUTH_WEB_APP_URL}?action=getUsers&adminId=${encodeURIComponent(currentUser.id)}`;
+        console.log('🔍 loadUsers URL:', url);
+        const response = await fetch(url);
+        const result = await response.json();
+        console.log('📦 loadUsers response:', result);
+
+        if (result.status === 'success') {
+            allUsers = result.users || [];
+            renderUsers();
+            updateAdminStats();
+            showToast('Users loaded successfully', 'success');
+        } else {
+            showToast(result.message || 'Failed to load users', 'error');
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+        showToast('Error loading users: ' + error.message, 'error');
+    }
+}
+
+function renderUsers() {
+    const container = document.getElementById('usersList');
+    if (allUsers.length === 0) {
+        container.innerHTML = `<div class="empty-state"><i class="fas fa-users text-4xl text-[#D6CDBF]"></i><p class="mt-2">No users found</p></div>`;
+        return;
+    }
+    let html = '';
+    allUsers.forEach(user => {
+        const isCurrentUser = user.id === currentUser.id;
+        const isAdmin = user.isAdmin === true || user.isAdmin === 'TRUE';
+        html += `
+            <div class="admin-user-card">
+                <div class="user-details">
+                    <div>
+                        <span class="name">${escapeHtml(user.name)}</span>
+                        <span class="badge ${isAdmin ? 'bg-[#C9A96E]' : 'bg-[#EDE6DC]'}">
+                            ${isAdmin ? 'Admin' : 'User'}
+                        </span>
+                        ${isCurrentUser ? '<span class="badge bg-[#2B7A4B] text-white">You</span>' : ''}
+                    </div>
+                    <div class="username">@${escapeHtml(user.username)}</div>
+                    <div class="text-xs text-[#8A7A66] mt-1">ID: ${user.id}</div>
+                </div>
+                <div class="user-actions">
+                    ${!isCurrentUser ? `
+                        <button onclick="editUser('${user.id}')" class="btn-edit">
+                            <i class="fas fa-edit mr-1"></i> Edit
+                        </button>
+                        ${isAdmin ? `
+                            <button onclick="removeAdmin('${user.id}')" class="btn-remove-admin">
+                                <i class="fas fa-user mr-1"></i> Remove Admin
+                            </button>
+                        ` : `
+                            <button onclick="makeAdmin('${user.id}')" class="btn-make-admin">
+                                <i class="fas fa-shield-alt mr-1"></i> Make Admin
+                            </button>
+                        `}
+                        <button onclick="deleteUser('${user.id}')" class="btn-delete">
+                            <i class="fas fa-trash mr-1"></i> Delete
+                        </button>
+                    ` : `
+                        <button onclick="editUser('${user.id}')" class="btn-edit">
+                            <i class="fas fa-edit mr-1"></i> Edit Profile
+                        </button>
+                    `}
+                </div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
+}
+
+function updateAdminStats() {
+    const total = allUsers.length;
+    const admins = allUsers.filter(u => u.isAdmin === true || u.isAdmin === 'TRUE').length;
+    const regular = total - admins;
+    document.getElementById('totalUsers').textContent = total;
+    document.getElementById('adminCount').textContent = admins;
+    document.getElementById('regularUsers').textContent = regular;
+}
+
+// ============================================================
+// ADMIN ACTIONS
+// ============================================================
+
+async function makeAdmin(userId) {
+    if (!currentUser || !currentUser.id || !currentUser.isAdmin) {
+        showToast('Admin access required.', 'error');
+        return;
+    }
+    if (!userId) {
+        showToast('Invalid user ID.', 'error');
+        return;
+    }
+    showToast('Making user admin...', 'info');
+    try {
+        const url = `${AUTH_WEB_APP_URL}?action=updateUser&adminId=${encodeURIComponent(currentUser.id)}&userId=${encodeURIComponent(userId)}&isAdmin=true`;
+        console.log('🔍 makeAdmin URL:', url);
+        const response = await fetch(url);
+        const result = await response.json();
+        console.log('📦 makeAdmin response:', result);
+        if (result.status === 'success') {
+            showToast('User is now an admin', 'success');
+            loadUsers();
+        } else {
+            showToast(result.message || 'Action failed', 'error');
+        }
+    } catch (error) {
+        console.error('Error making admin:', error);
+        showToast('Error: ' + error.message, 'error');
+    }
+}
+
+async function removeAdmin(userId) {
+    if (!currentUser || !currentUser.id || !currentUser.isAdmin) {
+        showToast('Admin access required.', 'error');
+        return;
+    }
+    if (!userId) {
+        showToast('Invalid user ID.', 'error');
+        return;
+    }
+    showToast('Removing admin privileges...', 'info');
+    try {
+        const url = `${AUTH_WEB_APP_URL}?action=updateUser&adminId=${encodeURIComponent(currentUser.id)}&userId=${encodeURIComponent(userId)}&isAdmin=false`;
+        console.log('🔍 removeAdmin URL:', url);
+        const response = await fetch(url);
+        const result = await response.json();
+        console.log('📦 removeAdmin response:', result);
+        if (result.status === 'success') {
+            showToast('Admin privileges removed', 'success');
+            loadUsers();
+        } else {
+            showToast(result.message || 'Action failed', 'error');
+        }
+    } catch (error) {
+        console.error('Error removing admin:', error);
+        showToast('Error: ' + error.message, 'error');
+    }
+}
+
+async function deleteUser(userId) {
+    if (!currentUser || !currentUser.id || !currentUser.isAdmin) {
+        showToast('Admin access required.', 'error');
+        return;
+    }
+    if (!userId) {
+        showToast('Invalid user ID.', 'error');
+        return;
+    }
+    showToast('Deleting user...', 'info');
+    try {
+        const url = `${AUTH_WEB_APP_URL}?action=deleteUser&adminId=${encodeURIComponent(currentUser.id)}&userId=${encodeURIComponent(userId)}`;
+        console.log('🔍 deleteUser URL:', url);
+        const response = await fetch(url);
+        const result = await response.json();
+        console.log('📦 deleteUser response:', result);
+        if (result.status === 'success') {
+            showToast('User deleted successfully', 'success');
+            loadUsers();
+        } else {
+            showToast(result.message || 'Delete failed', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        showToast('Error: ' + error.message, 'error');
+    }
+}
+
+// ============================================================
+// EDIT USER
+// ============================================================
+
+function editUser(userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) {
+        showToast('User not found', 'error');
+        return;
+    }
+    document.getElementById('editUserId').value = user.id;
+    document.getElementById('editUserName').value = user.name || '';
+    document.getElementById('editUserUsername').value = user.username || '';
+    document.getElementById('editUserPassword').value = '';
+    document.getElementById('editUserConfirmPassword').value = '';
+    document.getElementById('editUserIsAdmin').checked = user.isAdmin === true || user.isAdmin === 'TRUE';
+    document.getElementById('editUserModal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('editUserModal').classList.add('hidden');
+}
+
+document.getElementById('editUserForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const userId = document.getElementById('editUserId').value;
+    const name = document.getElementById('editUserName').value.trim();
+    const username = document.getElementById('editUserUsername').value.trim();
+    const password = document.getElementById('editUserPassword').value;
+    const confirmPassword = document.getElementById('editUserConfirmPassword').value;
+    const isAdmin = document.getElementById('editUserIsAdmin').checked;
+
+    if (!name || !username) {
+        showToast('Name and username are required', 'error');
+        return;
+    }
+    if (password && password !== confirmPassword) {
+        showToast('Passwords do not match', 'error');
+        return;
+    }
+    if (password && password.length < 6) {
+        showToast('Password must be at least 6 characters', 'error');
+        return;
+    }
+
+    try {
+        let url = `${AUTH_WEB_APP_URL}?action=updateUser&adminId=${encodeURIComponent(currentUser.id)}&userId=${encodeURIComponent(userId)}&name=${encodeURIComponent(name)}&username=${encodeURIComponent(username)}&isAdmin=${isAdmin}`;
+        if (password) {
+            const hashedPassword = CryptoJS.MD5(password).toString();
+            url += `&password=${encodeURIComponent(hashedPassword)}`;
+        }
+        const response = await fetch(url);
+        const result = await response.json();
+        if (result.status === 'success') {
+            showToast('User updated successfully', 'success');
+            closeEditModal();
+            loadUsers();
+        } else {
+            showToast(result.message || 'Update failed', 'error');
+        }
+    } catch (error) {
+        console.error('Error updating user:', error);
+        showToast('Error updating user', 'error');
+    }
+});
+
+// ============================================================
+// ADD USER
+// ============================================================
+
+function openAddUserModal() {
+    document.getElementById('addUserModal').classList.remove('hidden');
+    document.getElementById('addUserForm').reset();
+}
+function closeAddUserModal() {
+    document.getElementById('addUserModal').classList.add('hidden');
+}
+
+document.getElementById('addUserForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const name = document.getElementById('addUserName').value.trim();
+    const username = document.getElementById('addUserUsername').value.trim();
+    const password = document.getElementById('addUserPassword').value;
+    const confirmPassword = document.getElementById('addUserConfirmPassword').value;
+    const isAdmin = document.getElementById('addUserIsAdmin').checked;
+
+    if (!name || !username || !password || !confirmPassword) {
+        showToast('Please fill in all fields', 'error');
+        return;
+    }
+    if (username.length < 3) {
+        showToast('Username must be at least 3 characters', 'error');
+        return;
+    }
+    if (password.length < 6) {
+        showToast('Password must be at least 6 characters', 'error');
+        return;
+    }
+    if (password !== confirmPassword) {
+        showToast('Passwords do not match', 'error');
+        return;
+    }
+
+    try {
+        const hashedPassword = CryptoJS.MD5(password).toString();
+        const url = `${AUTH_WEB_APP_URL}?action=register&name=${encodeURIComponent(name)}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(hashedPassword)}&isAdmin=${isAdmin}`;
+        const response = await fetch(url);
+        const result = await response.json();
+        if (result.status === 'success') {
+            showToast(`User ${username} created successfully!`, 'success');
+            closeAddUserModal();
+            loadUsers();
+        } else {
+            showToast(result.message || 'Failed to create user', 'error');
+        }
+    } catch (error) {
+        console.error('Error creating user:', error);
+        showToast('Error creating user', 'error');
+    }
+});
+
+// ============================================================
+// CRM FUNCTIONS
+// ============================================================
+
+let socialLeads = [], walkinLeads = [], callLeads = [], allCombined = [];
+let expandedId = null;
+let expandedEditId = null;
+let currentCustomerTab = 'social';
+
+const serviceOptions = ['PPF', 'Ceramic Coating', 'Detailing', 'Wrap', 'Tinting'];
+const budgetRanges = ['₹10,000-25,000', '₹25,000-50,000', '₹50,000-75,000', '₹75,000-1,00,000', '₹1,00,000+'];
+const hyderabadOptions = ['Hyderabad', 'Andra Pradesh', 'Karnataka', 'Telangana'];
+const masterDataOptions = ['Yes - All information is correct', 'No - Some information needs correction', 'Partially correct', 'Not verified yet'];
+
+function getTodayDateString() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getYesterdayDateString() {
+    const d = new Date();
+    d.setDate(d.getDate()-1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function getTodayDisplay() {
+    const d = new Date();
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+}
+function normalizeDateToYMD(val) {
+    if (!val) return '';
+    if (val instanceof Date) return `${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,'0')}-${String(val.getDate()).padStart(2,'0')}`;
+    let s = String(val);
+    if (s.includes('T')) s = s.split('T')[0];
+    if (s.match(/^\d{4}-\d{2}-\d{2}/)) return s.substring(0,10);
+    return s;
+}
+function formatDateForDisplay(val) {
+    if (!val) return '-';
+    const y = normalizeDateToYMD(val);
+    if (!y) return '-';
+    const p = y.split('-');
+    return `${p[2]}/${p[1]}/${p[0]}`;
+}
+
+function calculateScore(lead) {
+    let s = 0;
+    if (lead.call1Status === 'Picked') s += 20;
+    else if (lead.call1Status === 'Not Picked') s += 10;
+    if (lead.call2Status === 'Picked') s += 20;
+    else if (lead.call2Status === 'Not Picked') s += 10;
+    if (lead.call3Status === 'Picked') s += 20;
+    else if (lead.call3Status === 'Not Picked') s += 10;
+    if (lead.converted) s += 70;
+    return s;
+}
+
+function getNextAction(lead) {
+    if (lead.lost) return 'Lost';
+    if (lead.converted) return 'Converted';
+    if (lead.call1Status === 'Pending') return 'Call 1';
+    if (lead.call2Status === 'Pending') return 'Call 2';
+    if (lead.call3Status === 'Pending') return 'Call 3';
+    if (!lead.converted && !lead.confirmDate) return 'Confirmation';
+    return 'Active';
+}
+
+function getDueFollowUp(lead) {
+    if (lead.lost || lead.converted) return null;
+    const today = getTodayDateString();
+    const yest = getYesterdayDateString();
+    if (lead.confirmDate && (normalizeDateToYMD(lead.confirmDate) === today || normalizeDateToYMD(lead.confirmDate) === yest) && !lead.converted) {
+        return { type: 'confirmation', badge: 'green', icon: '✓', label: 'Confirmation Due', isOverdue: normalizeDateToYMD(lead.confirmDate) === yest };
+    }
+    const c1 = normalizeDateToYMD(lead.call1Date);
+    const c2 = normalizeDateToYMD(lead.call2Date);
+    const c3 = normalizeDateToYMD(lead.call3Date);
+    if ((c1 === today || c1 === yest) && lead.call1Status === 'Pending') return { type: 'call', badge: 'red', icon: '1', label: 'Call 1 Due', isOverdue: c1 === yest };
+    if ((c2 === today || c2 === yest) && lead.call2Status === 'Pending') return { type: 'call', badge: 'red', icon: '2', label: 'Call 2 Due', isOverdue: c2 === yest };
+    if ((c3 === today || c3 === yest) && lead.call3Status === 'Pending') return { type: 'call', badge: 'red', icon: '3', label: 'Call 3 Due', isOverdue: c3 === yest };
+    return null;
+}
+
+function getFollowupsCount() {
+    const today = getTodayDateString();
+    const yest = getYesterdayDateString();
+    return allCombined.filter(lead => {
+        if (lead.lost || lead.converted) return false;
+        const c1 = normalizeDateToYMD(lead.call1Date);
+        const c2 = normalizeDateToYMD(lead.call2Date);
+        const c3 = normalizeDateToYMD(lead.call3Date);
+        const cf = normalizeDateToYMD(lead.confirmDate);
+        return ((c1 === today || c1 === yest) && lead.call1Status === 'Pending') ||
+               ((c2 === today || c2 === yest) && lead.call2Status === 'Pending') ||
+               ((c3 === today || c3 === yest) && lead.call3Status === 'Pending') ||
+               ((cf === today || cf === yest) && !lead.converted);
+    }).length;
+}
+
+async function updateLeadInSheet(lead) {
+    const isSocial = lead.sourceType === 'social';
+    const targetUrl = isSocial ? SOCIAL_WEB_APP_URL : WALKIN_CALL_WEB_APP_URL;
+    const cleanPhone = cleanPhoneNumber(lead.phone);
+    const oldPhone = lead._originalPhone ? cleanPhoneNumber(lead._originalPhone) : cleanPhone;
+
+    console.log('📤 updateLeadInSheet called for:', lead.id);
+    console.log('📞 oldPhone:', oldPhone, 'newPhone:', cleanPhone);
+    console.log('🌐 targetUrl:', targetUrl);
+
+    const payload = {
+        oldPhone: oldPhone,
+        phone: cleanPhone,
+        Contact: cleanPhone,
+        name: lead.name || '',
+        platform: lead.platform || '',
+        vehicle: lead.vehicle || '',
+        service: lead.service || '',
+        date: lead.date || getTodayDateString(),
+        call1Date: lead.call1Date || '',
+        call1Status: lead.call1Status || 'Pending',
+        call2Date: lead.call2Date || '',
+        call2Status: lead.call2Status || 'Pending',
+        call3Date: lead.call3Date || '',
+        call3Status: lead.call3Status || 'Pending',
+        confirmDate: lead.confirmDate || '',
+        converted: lead.converted || false,
+        lost: lead.lost || false,
+        nextAction: getNextAction(lead),
+        structuredData: {
+            services: lead.structuredData?.services || [],
+            vehicleAgeMonths: lead.structuredData?.vehicleAgeMonths || '',
+            estimatedAmount: lead.structuredData?.estimatedAmount || '',
+            budget: lead.structuredData?.budget || '',
+            interestLevel: lead.structuredData?.interestLevel || '',
+            fromHyderabad: lead.structuredData?.fromHyderabad || '',
+            masterDataCorrect: lead.structuredData?.masterDataCorrect || '',
+            additionalNotes: lead.structuredData?.additionalNotes || ''
+        }
+    };
+    if (!isSocial) {
+        payload.fullName = lead.name || '';
+        payload.contactNo = cleanPhone;
+    }
+
+    console.log('📦 Payload:', JSON.stringify(payload, null, 2));
+
+    try {
+        const response = await fetch(targetUrl, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        console.log('✅ Fetch sent. Response (no-cors, cannot read):', response);
+        return true;
+    } catch (e) {
+        console.error('❌ Fetch error:', e);
+        return false;
+    }
+}
+
+async function saveNewLead(type, formData) {
+    const today = getTodayDateString();
+    const cleanPhone = cleanPhoneNumber(formData.phone);
+    const newLead = {
+        id: `temp_${Date.now()}`,
+        platform: type,
+        sourceType: type === 'Call' ? 'call' : 'walkin',
+        name: formData.name,
+        phone: cleanPhone,
+        vehicle: formData.vehicle,
+        service: formData.service,
+        date: today,
+        call1Date: type === 'Call' ? today : '',
+        call1Status: type === 'Call' ? 'Skipped' : 'Pending',
+        call2Date: '',
+        call2Status: 'Pending',
+        call3Date: '',
+        call3Status: 'Pending',
+        confirmDate: '',
+        converted: false,
+        lost: false,
+        structuredData: {
+            services: [],
+            vehicleAgeMonths: formData.vehicleAge || '',
+            estimatedAmount: formData.quotedAmount || '',
+            budget: formData.budget || '',
+            interestLevel: '',
+            fromHyderabad: '',
+            masterDataCorrect: '',
+            additionalNotes: formData.notes || ''
+        },
+        score: 0
+    };
+    newLead._originalPhone = cleanPhone;
+    showToast(`Creating ${type} lead...`);
+    const ok = await updateLeadInSheet(newLead);
+    if (ok) {
+        showToast(`✅ ${type} lead created: ${formData.name}`);
+        if (type === 'Walk-in') walkinLeads.unshift(newLead);
+        else callLeads.unshift(newLead);
+        allCombined = [...socialLeads, ...walkinLeads, ...callLeads];
+        renderAll();
+        setTimeout(() => loadAllData(false), 2000);
+    } else {
+        showToast(`❌ Failed to create.`, true);
+    }
+}
+
+async function loadAllData(showToastMsg = true) {
+    if (showToastMsg) showToast('Loading data from sheets...');
+    try {
+        // --- Load Social Leads ---
+        const socialRes = await fetch(SOCIAL_WEB_APP_URL);
+        const socialJson = await socialRes.json();
+        const newSocial = [];
+        if (socialJson.status === 'success' && Array.isArray(socialJson.data)) {
+            for (let row of socialJson.data) {
+                if (!row['Full name'] && !row['Full Name']) continue;
+                let phone = cleanPhoneNumber(row['Contact No.'] || row['Contact'] || '');
+                let leadDate = row.created_time ? normalizeDateToYMD(row.created_time) : getTodayDateString();
+                let c1Date = normalizeDateToYMD(row['Call 1 Date']) || leadDate || getTodayDateString();
+                let lead = {
+                    id: `social_${phone}`,
+                    platform: 'Social Media',
+                    sourceType: 'social',
+                    name: row['Full name'] || row['Full Name'] || '',
+                    phone: phone,
+                    vehicle: row.Vehicle || '',
+                    service: row.Service || '',
+                    date: leadDate,
+                    call1Date: c1Date,
+                    call1Status: row['Call 1 Status'] || 'Pending',
+                    call2Date: normalizeDateToYMD(row['Call 2 Date']) || '',
+                    call2Status: row['Call 2 Status'] || 'Pending',
+                    call3Date: normalizeDateToYMD(row['Call 3 Date']) || '',
+                    call3Status: row['Call 3 Status'] || 'Pending',
+                    confirmDate: normalizeDateToYMD(row['Confirmation Call Date']) || '',
+                    converted: row.Status === 'Converted',
+                    lost: row.Status === 'Lost',
+                    structuredData: {
+                        services: row['Service Required'] ? row['Service Required'].split(',').map(s => s.trim()) : [],
+                        vehicleAgeMonths: row['Vehicle Age (Month)'] || '',
+                        estimatedAmount: row['Estimated Amount'] || '',
+                        budget: row['Customer Budget'] || '',
+                        interestLevel: row['Interest Level'] ? parseInt(row['Interest Level']) : null,
+                        fromHyderabad: row['Location?'] || row['Location'] || '',
+                        masterDataCorrect: row['Master Data Correct?'] || '',
+                        additionalNotes: row['Additional Notes'] || ''
+                    }
+                };
+                lead._originalPhone = phone;
+                newSocial.push(lead);
+            }
+        }
+
+        // --- Load Walk-in & Call Leads ---
+        const wcRes = await fetch(WALKIN_CALL_WEB_APP_URL);
+        const wcJson = await wcRes.json();
+        const newWalkin = [], newCall = [];
+        if (wcJson.status === 'success' && Array.isArray(wcJson.data)) {
+            for (let row of wcJson.data) {
+                let platform = (row.Platform || '').toString().trim();
+                if (!platform) continue;
+                let phone = cleanPhoneNumber(row['Contact'] || row['Contact No.'] || '');
+                let leadDate = row['Date'] ? normalizeDateToYMD(row['Date']) : (row.created_time ? normalizeDateToYMD(row.created_time) : getTodayDateString());
+                let c1Date = normalizeDateToYMD(row['Call 1 date']) || (platform === 'Call' ? leadDate : (platform === 'Walk-in' ? leadDate : ''));
+                let c1Status = row['Call 1 Status'] || (platform === 'Call' ? 'Skipped' : 'Pending');
+                let lead = {
+                    id: `wc_${phone}`,
+                    platform: platform,
+                    sourceType: platform === 'Call' ? 'call' : 'walkin',
+                    name: row['Full name'] || '',
+                    phone: phone,
+                    vehicle: row.Vehicle || '',
+                    service: row.service || '',
+                    date: leadDate,
+                    call1Date: c1Date,
+                    call1Status: c1Status,
+                    call2Date: normalizeDateToYMD(row['Call 2 date']) || '',
+                    call2Status: row['Call 2 Status'] || 'Pending',
+                    call3Date: normalizeDateToYMD(row['Call 3 date']) || '',
+                    call3Status: row['Call 3 Status'] || 'Pending',
+                    confirmDate: normalizeDateToYMD(row['Confirmation Call Date']) || '',
+                    converted: row.Status === 'Converted',
+                    lost: row.Status === 'Lost',
+                    structuredData: {
+                        services: row['Service Required'] ? row['Service Required'].split(',').map(s => s.trim()) : [],
+                        vehicleAgeMonths: row['Vehicle Age (Month)'] || '',
+                        estimatedAmount: row['Estimated Amount'] || '',
+                        budget: row['Customer Budget'] || '',
+                        interestLevel: row['Interest Level'] ? parseInt(row['Interest Level']) : null,
+                        fromHyderabad: row['From Hyderabad?'] || row.Location || '',
+                        masterDataCorrect: row['Master Data Correct?'] || '',
+                        additionalNotes: row['Additional Notes'] || ''
+                    }
+                };
+                lead._originalPhone = phone;
+                if (platform === 'Walk-in') newWalkin.push(lead);
+                else if (platform === 'Call') newCall.push(lead);
+            }
+        }
+
+        socialLeads = newSocial;
+        walkinLeads = newWalkin;
+        callLeads = newCall;
+        allCombined = [...socialLeads, ...walkinLeads, ...callLeads];
+        allCombined.forEach(l => l.score = calculateScore(l));
+        renderAll();
+        if (showToastMsg) showToast(`✅ Loaded: ${socialLeads.length} Social | ${walkinLeads.length} Walk-in | ${callLeads.length} Call`);
+    } catch (e) {
+        console.error('Load error:', e);
+        showToast(`❌ Error loading data`, true);
+    }
+}
+
+function renderDashboard() {
+    const total = allCombined.length;
+    const active = allCombined.filter(l => !l.lost && !l.converted).length;
+    const converted = allCombined.filter(l => l.converted).length;
+    const lost = allCombined.filter(l => l.lost).length;
+    let picked = 0, calls = 0;
+    allCombined.forEach(l => {
+        if (l.call1Status === 'Picked') picked++;
+        if (l.call1Status === 'Picked' || l.call1Status === 'Not Picked') calls++;
+        if (l.call2Status === 'Picked') picked++;
+        if (l.call2Status === 'Picked' || l.call2Status === 'Not Picked') calls++;
+        if (l.call3Status === 'Picked') picked++;
+        if (l.call3Status === 'Picked' || l.call3Status === 'Not Picked') calls++;
+    });
+    const rate = calls ? Math.round((picked / calls) * 100) : 0;
+    document.getElementById('totalLeads').innerText = total;
+    document.getElementById('activeLeads').innerText = active;
+    document.getElementById('pickRate').innerText = `${rate}%`;
+    document.getElementById('convertedCount').innerText = converted;
+    document.getElementById('lostCount').innerText = lost;
+    document.getElementById('socialCount').innerText = socialLeads.length;
+    document.getElementById('walkinCount').innerText = walkinLeads.length;
+    document.getElementById('callCount').innerText = callLeads.length;
+    document.getElementById('followupCount').innerText = getFollowupsCount();
+}
+
+// ============================================================
+// NEW: SEPARATE WORKSPACE FUNCTIONS
+// ============================================================
+
+function toggleLead(leadId) {
+    // Toggle only the call workspace
+    const ws = document.getElementById(`ws-${leadId}`);
+    if (!ws) return;
+    if (expandedId === leadId) {
+        ws.classList.add('collapsed');
+        ws.classList.remove('expanded');
+        const icon = document.getElementById(`icon-${leadId}`);
+        if (icon) icon.classList.remove('rotated');
+        expandedId = null;
+    } else {
+        // Close any open call workspace
+        if (expandedId) {
+            const prev = document.getElementById(`ws-${expandedId}`);
+            if (prev) { prev.classList.add('collapsed'); prev.classList.remove('expanded'); }
+            const pi = document.getElementById(`icon-${expandedId}`);
+            if (pi) pi.classList.remove('rotated');
+        }
+        // Also close any open edit workspace
+        if (expandedEditId) {
+            const prevEdit = document.getElementById(`ws-edit-${expandedEditId}`);
+            if (prevEdit) { prevEdit.classList.add('collapsed'); prevEdit.classList.remove('expanded'); }
+            const piEdit = document.getElementById(`icon-edit-${expandedEditId}`);
+            if (piEdit) piEdit.classList.remove('rotated');
+            expandedEditId = null;
+        }
+        ws.classList.remove('collapsed');
+        ws.classList.add('expanded');
+        const icon = document.getElementById(`icon-${leadId}`);
+        if (icon) icon.classList.add('rotated');
+        expandedId = leadId;
+    }
+}
+
+function toggleEdit(leadId, event) {
+    // Toggle only the edit workspace
+    if (event) {
+        event.stopPropagation();
+    }
+    const wsEdit = document.getElementById(`ws-edit-${leadId}`);
+    if (!wsEdit) return;
+    if (expandedEditId === leadId) {
+        wsEdit.classList.add('collapsed');
+        wsEdit.classList.remove('expanded');
+        const iconEdit = document.getElementById(`icon-edit-${leadId}`);
+        if (iconEdit) iconEdit.classList.remove('rotated');
+        expandedEditId = null;
+    } else {
+        // Close any open edit workspace
+        if (expandedEditId) {
+            const prevEdit = document.getElementById(`ws-edit-${expandedEditId}`);
+            if (prevEdit) { prevEdit.classList.add('collapsed'); prevEdit.classList.remove('expanded'); }
+            const piEdit = document.getElementById(`icon-edit-${expandedEditId}`);
+            if (piEdit) piEdit.classList.remove('rotated');
+        }
+        wsEdit.classList.remove('collapsed');
+        wsEdit.classList.add('expanded');
+        const iconEdit = document.getElementById(`icon-edit-${leadId}`);
+        if (iconEdit) iconEdit.classList.add('rotated');
+        expandedEditId = leadId;
+    }
+}
+
+// ============================================================
+// GET CALLS WORKSPACE HTML
+// ============================================================
+
+function getCallsWorkspaceHTML(lead) {
+    const nextAct = getNextAction(lead);
+    const isCall = (lead.platform === 'Call');
+    
+    return `<div class="space-y-4 p-4 bg-[#F9F5EE] rounded-xl">
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-[#EFE8DE]">
+            <h4 class="font-bold mb-3 flex items-center gap-2 text-[#3E2C1B]"><i class="fas fa-phone text-[#C9A96E]"></i> Call Management</h4>
+            <div class="grid grid-cols-4 gap-2 text-center text-xs mb-4">
+                <div class="p-2 rounded ${lead.call1Status==='Picked'?'bg-green-100':lead.call1Status==='Not Picked'?'bg-red-100':'bg-[#F3EFE8]'}"><b>Call1</b><br>${isCall?'Skipped':lead.call1Status}<br>${formatDateForDisplay(lead.call1Date)}</div>
+                <div class="p-2 rounded ${lead.call2Status==='Picked'?'bg-green-100':lead.call2Status==='Not Picked'?'bg-red-100':'bg-[#F3EFE8]'}"><b>Call2</b><br>${lead.call2Status}<br>${formatDateForDisplay(lead.call2Date)}</div>
+                <div class="p-2 rounded ${lead.call3Status==='Picked'?'bg-green-100':lead.call3Status==='Not Picked'?'bg-red-100':'bg-[#F3EFE8]'}"><b>Call3</b><br>${lead.call3Status}<br>${formatDateForDisplay(lead.call3Date)}</div>
+                <div class="p-2 rounded ${lead.converted?'bg-green-200':lead.confirmDate?'bg-yellow-100':'bg-[#F3EFE8]'}"><b>Confirm</b><br>${lead.converted?'Done':lead.confirmDate?'Scheduled':'Pending'}<br>${formatDateForDisplay(lead.confirmDate)}</div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="quickUpdate('${lead.id}','Picked')" class="py-2.5 bg-[#2B7A4B] hover:bg-[#1F5E38] text-white rounded-xl text-sm font-semibold transition">✅ ${nextAct} Picked</button>
+                <button onclick="quickUpdate('${lead.id}','Not Picked')" class="py-2.5 bg-[#C94A4A] hover:bg-[#A53636] text-white rounded-xl text-sm font-semibold transition">❌ Not Picked</button>
+            </div>
+            ${nextAct==='Confirmation' && !lead.converted ? `<button onclick="quickUpdate('${lead.id}','Convert')" class="w-full mt-3 py-2.5 bg-[#C9A96E] hover:bg-[#B8985E] text-[#2D241A] font-bold rounded-xl transition">🏆 Confirm Conversion (+70)</button>` : ''}
+            <div class="mt-3 flex gap-2">
+                <input type="date" id="scheduleDate-${lead.id}" class="border border-[#D6CDBF] rounded-xl p-2 text-sm flex-1 form-input" />
+                <button onclick="scheduleForLead('${lead.id}')" class="px-4 py-2 bg-[#3E2C1B] hover:bg-[#2D241A] text-white rounded-xl text-sm transition">Schedule</button>
+            </div>
+            <div class="flex gap-2 mt-3">
+                <a href="tel:${lead.phone}" class="flex-1 text-center py-2.5 bg-[#3E2C1B] hover:bg-[#2D241A] text-white rounded-xl text-sm transition">📞 Call</a>
+                <a href="https://wa.me/${lead.phone}" target="_blank" class="flex-1 text-center py-2.5 bg-[#2B7A4B] hover:bg-[#1F5E38] text-white rounded-xl text-sm transition">💬 WhatsApp</a>
+                <button onclick="markLeadLost('${lead.id}')" class="px-3 py-2 text-[#8A7A66] text-sm hover:text-[#C94A4A] transition">Archive</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+// ============================================================
+// GET EDIT WORKSPACE HTML (Full Edit Form)
+// ============================================================
+
+function getEditWorkspaceHTML(lead) {
+    const data = lead.structuredData || {};
+    const isAdmin = currentUser && currentUser.isAdmin;
+
+    return `<div class="space-y-4 p-4 bg-[#F9F5EE] rounded-xl">
+        <div class="bg-white rounded-xl p-4 shadow-sm border border-[#EFE8DE]">
+            <h4 class="font-bold mb-3 flex items-center gap-2 text-[#3E2C1B]"><i class="fas fa-edit text-[#C9A96E]"></i> Edit Customer Information</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                ${isAdmin ? `
+                    <div class="col-span-2">
+                        <label class="text-xs text-[#6B5A44]">Full Name</label>
+                        <input type="text" id="editName_${lead.id}" value="${escapeHtml(lead.name)}" class="form-input text-sm" />
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-xs text-[#6B5A44]">Phone Number</label>
+                        <input type="tel" id="editPhone_${lead.id}" value="${escapeHtml(lead.phone)}" class="form-input text-sm" />
+                    </div>
+                ` : ''}
+                <div><label class="text-xs text-[#6B5A44]">Services Required</label><div class="checkbox-group">${serviceOptions.map(s => `<label class="checkbox-option text-xs"><input type="checkbox" id="service_${lead.id}_${s.replace(/\s/g,'')}" ${data.services?.includes(s)?'checked':''}> ${s}</label>`).join('')}</div></div>
+                <div><label class="text-xs text-[#6B5A44]">Vehicle Age (Months)</label><input type="number" id="vehicleAge_${lead.id}" value="${data.vehicleAgeMonths||''}" class="form-input text-sm" /></div>
+                <div><label class="text-xs text-[#6B5A44]">Quoted Amount (₹)</label><input type="number" id="estimatedAmount_${lead.id}" value="${data.estimatedAmount||''}" class="form-input text-sm" /></div>
+                <div><label class="text-xs text-[#6B5A44]">Customer Budget</label><select id="budget_${lead.id}" class="form-select text-sm"><option value="">Select</option>${budgetRanges.map(b => `<option ${data.budget===b?'selected':''}>${b}</option>`).join('')}</select></div>
+                <div><label class="text-xs text-[#6B5A44]">Interest Level (1-5)</label><select id="interest_${lead.id}" class="form-select text-sm"><option value="">Select</option>${[1,2,3,4,5].map(l => `<option ${data.interestLevel==l?'selected':''}>${l}</option>`).join('')}</select></div>
+                <div><label class="text-xs text-[#6B5A44]">Location</label><select id="location_${lead.id}" class="form-select text-sm"><option value="">Select</option>${hyderabadOptions.map(o => `<option ${data.fromHyderabad===o?'selected':''}>${o}</option>`).join('')}</select></div>
+                <div><label class="text-xs text-[#6B5A44]">Master Data Correct?</label><select id="masterData_${lead.id}" class="form-select text-sm"><option value="">Select</option>${masterDataOptions.map(o => `<option ${data.masterDataCorrect===o?'selected':''}>${o}</option>`).join('')}</select></div>
+                <div class="col-span-2"><label class="text-xs text-[#6B5A44]">Additional Notes</label><textarea id="notes_${lead.id}" rows="2" class="form-textarea text-sm">${escapeHtml(data.additionalNotes||'')}</textarea></div>
+            </div>
+            <button onclick="saveStructuredData('${lead.id}')" class="w-full mt-4 py-2.5 bg-[#6B5A44] hover:bg-[#4B3A28] text-white rounded-xl text-sm font-semibold transition"><i class="fas fa-save mr-1"></i> Save Information</button>
+        </div>
+    </div>`;
+}
+
+// ============================================================
+// RENDER FUNCTIONS
+// ============================================================
+
+window.saveStructuredData = async (leadId) => {
+    console.log('🔍 saveStructuredData called for leadId:', leadId);
+    let lead = allCombined.find(l => l.id === leadId);
+    if (!lead) {
+        showToast('Lead not found', true);
+        return;
+    }
+
+    const selectedServices = [];
+    serviceOptions.forEach(s => {
+        const cb = document.getElementById(`service_${leadId}_${s.replace(/\s/g,'')}`);
+        if (cb && cb.checked) selectedServices.push(s);
+    });
+    lead.structuredData = lead.structuredData || {};
+    lead.structuredData.services = selectedServices;
+    lead.structuredData.vehicleAgeMonths = document.getElementById(`vehicleAge_${leadId}`)?.value || '';
+    lead.structuredData.estimatedAmount = document.getElementById(`estimatedAmount_${leadId}`)?.value || '';
+    lead.structuredData.budget = document.getElementById(`budget_${leadId}`)?.value || '';
+    lead.structuredData.interestLevel = document.getElementById(`interest_${leadId}`)?.value || '';
+    lead.structuredData.fromHyderabad = document.getElementById(`location_${leadId}`)?.value || '';
+    lead.structuredData.masterDataCorrect = document.getElementById(`masterData_${leadId}`)?.value || '';
+    lead.structuredData.additionalNotes = document.getElementById(`notes_${leadId}`)?.value || '';
+
+    if (currentUser && currentUser.isAdmin) {
+        const nameInput = document.getElementById(`editName_${leadId}`);
+        const phoneInput = document.getElementById(`editPhone_${leadId}`);
+        if (nameInput) {
+            const newName = nameInput.value.trim();
+            if (newName) {
+                console.log('✏️ Updating name from:', lead.name, 'to:', newName);
+                lead.name = newName;
+            }
+        }
+        if (phoneInput) {
+            const rawPhone = phoneInput.value.trim();
+            const cleanPhone = cleanPhoneNumber(rawPhone);
+            if (cleanPhone) {
+                console.log('✏️ Updating phone from:', lead.phone, 'to:', cleanPhone);
+                lead.phone = cleanPhone;
+            }
+        }
+    }
+
+    console.log('💾 Saving lead with updated fields:', lead);
+    showToast('Saving...');
+    const ok = await updateLeadInSheet(lead);
+    if (ok) {
+        showToast('✅ Customer information saved!');
+        renderAll();
+    } else {
+        showToast('❌ Save failed.', true);
+    }
+};
+
+window.quickUpdate = async (leadId, action) => {
+    let lead = allCombined.find(l => l.id === leadId);
+    if (!lead) return;
+    const stage = getNextAction(lead);
+    if (action === 'Convert') lead.converted = true;
+    else if (stage === 'Call 1') lead.call1Status = action;
+    else if (stage === 'Call 2') lead.call2Status = action;
+    else if (stage === 'Call 3') lead.call3Status = action;
+    else if (stage === 'Confirmation' && action === 'Picked') lead.converted = true;
+    lead.score = calculateScore(lead);
+    showToast(`Updating ${stage}...`);
+    const ok = await updateLeadInSheet(lead);
+    if (ok) showToast(`✅ ${stage} → ${action}`);
+    else showToast(`❌ Update failed.`, true);
+    renderAll();
+};
+
+window.scheduleForLead = async (leadId) => {
+    let lead = allCombined.find(l => l.id === leadId);
+    if (!lead) { showToast('Lead not found'); return; }
+    const dateInput = document.getElementById(`scheduleDate-${leadId}`).value;
+    if (!dateInput) { showToast('Select a date first'); return; }
+    const formatted = normalizeDateToYMD(dateInput);
+    if (!formatted) { showToast('Invalid date'); return; }
+    const stage = getNextAction(lead);
+    if (stage === 'Call 1') { lead.call1Date = formatted; lead.call1Status = 'Pending'; }
+    else if (stage === 'Call 2') { lead.call2Date = formatted; lead.call2Status = 'Pending'; }
+    else if (stage === 'Call 3') { lead.call3Date = formatted; lead.call3Status = 'Pending'; }
+    else if (stage === 'Confirmation') { lead.confirmDate = formatted; }
+    else { showToast(`Cannot schedule for ${stage}`, true); return; }
+    lead.score = calculateScore(lead);
+    showToast(`Scheduling ${stage}...`);
+    const ok = await updateLeadInSheet(lead);
+    if (ok) showToast(`✅ ${stage} set for ${formatDateForDisplay(formatted)}`);
+    else showToast(`❌ Scheduling failed.`, true);
+    renderAll();
+};
+
+window.markLeadLost = async (leadId) => {
+    let lead = allCombined.find(l => l.id === leadId);
+    if (lead) {
+        lead.lost = true;
+        showToast('Archiving...');
+        const ok = await updateLeadInSheet(lead);
+        if (ok) showToast('✅ Archived');
+        else showToast('❌ Archive failed.', true);
+        renderAll();
+    }
+};
+
+function renderCustomerContent() {
+    let leads = [], showPlus = false, title = '';
+    if (currentCustomerTab === 'social') { leads = socialLeads; showPlus = false; title = '📱 Social Media Leads'; }
+    else if (currentCustomerTab === 'walkin') { leads = walkinLeads; showPlus = true; title = '🚪 Walk-in Leads'; }
+    else { leads = callLeads; showPlus = true; title = '📞 Call Leads'; }
+    leads = [...leads].sort((a, b) => (b.score || 0) - (a.score || 0));
+    let html = `<div class="mb-6 flex justify-between items-center flex-wrap gap-3"><h3 class="text-xl font-bold text-[#3E2C1B]">${title}</h3>`;
+    if (showPlus) html += `<button onclick="openNewLeadModal('${currentCustomerTab === 'walkin' ? 'Walk-in' : 'Call'}')" class="btn-gold px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition"><i class="fas fa-plus mr-1"></i> New ${currentCustomerTab === 'walkin' ? 'Walk-in' : 'Call'}</button>`;
+    html += `</div><div class="space-y-3">`;
+    if (leads.length === 0) html += `<div class="empty-state"><i class="fas fa-inbox"></i><p>No ${title.toLowerCase()} found.</p></div>`;
+    else {
+        leads.forEach(lead => {
+            const isExp = expandedId === lead.id;
+            const isEditExp = expandedEditId === lead.id;
+            const nextAction = getNextAction(lead);
+            const due = getDueFollowUp(lead);
+            let badgeHtml = '';
+            if (due) {
+                const bc = due.badge === 'green' ? 'badge-green' : 'badge-red';
+                badgeHtml = `<div class="notification-badge ${bc}" title="${due.label}${due.isOverdue ? ' (OVERDUE!)' : ''}">${due.icon}</div>`;
+            }
+            html += `<div class="border border-[#EFE8DE] rounded-xl bg-white shadow-sm overflow-hidden" style="position:relative;">
+                <div class="flex justify-between items-center p-4 lead-row" onclick="toggleLead('${lead.id}')" style="min-height:70px;">
+                    ${badgeHtml}
+                    <div class="flex-1" style="margin-left:35px;">
+                        <div class="font-bold text-[#3E2C1B]">${escapeHtml(lead.name)}</div>
+                        <div class="text-sm text-[#6B5A44]">📞 ${lead.phone} • ${lead.vehicle || '-'} • ${lead.service || '-'}</div>
+                        <div class="text-xs text-[#8A7A66]">Lead: ${formatDateForDisplay(lead.date)}</div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="status-badge bg-[#EDE6DC] text-[#3E2C1B]">${nextAction}</span>
+                        <span class="text-xs text-[#6B5A44]">⭐ ${lead.score || 0}</span>
+                        <button onclick="toggleEdit('${lead.id}', event)" class="btn-edit-toggle" title="Edit Customer Information">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <i id="icon-${lead.id}" class="fas fa-chevron-down transition-transform ${isExp ? 'rotated' : ''}"></i>
+                    </div>
+                </div>
+                <!-- Call Workspace -->
+                <div id="ws-${lead.id}" class="workspace ${isExp ? 'expanded' : 'collapsed'}">${getCallsWorkspaceHTML(lead)}</div>
+                <!-- Edit Workspace -->
+                <div id="ws-edit-${lead.id}" class="workspace-edit ${isEditExp ? 'expanded' : 'collapsed'}">${getEditWorkspaceHTML(lead)}</div>
+            </div>`;
+        });
+    }
+    html += `</div>`;
+    document.getElementById('customerContent').innerHTML = html;
+}
+
+function renderFollowups() {
+    const today = getTodayDateString();
+    const yest = getYesterdayDateString();
+    const todayLeads = allCombined.filter(lead => {
+        if (lead.lost || lead.converted) return false;
+        const c1 = normalizeDateToYMD(lead.call1Date);
+        const c2 = normalizeDateToYMD(lead.call2Date);
+        const c3 = normalizeDateToYMD(lead.call3Date);
+        const cf = normalizeDateToYMD(lead.confirmDate);
+        return ((c1 === today || c1 === yest) && lead.call1Status === 'Pending') ||
+               ((c2 === today || c2 === yest) && lead.call2Status === 'Pending') ||
+               ((c3 === today || c3 === yest) && lead.call3Status === 'Pending') ||
+               ((cf === today || cf === yest) && !lead.converted);
+    });
+    todayLeads.sort((a, b) => {
+        const aD = normalizeDateToYMD(a.call1Date || a.call2Date || a.call3Date || a.confirmDate);
+        const bD = normalizeDateToYMD(b.call1Date || b.call2Date || b.call3Date || b.confirmDate);
+        if (aD === yest && bD !== yest) return -1;
+        if (bD === yest && aD !== yest) return 1;
+        return 0;
+    });
+    const container = document.getElementById('followupsList');
+    if (todayLeads.length === 0) {
+        container.innerHTML = `<div class="empty-state"><i class="fas fa-calendar-day"></i><p>No follow-ups for today or yesterday</p><p class="text-xs mt-2 text-[#8A7A66]">Schedule a call using the date picker in Customer Data</p></div>`;
+    } else {
+        let html = '';
+        todayLeads.forEach(lead => {
+            const isExp = expandedId === lead.id;
+            const isEditExp = expandedEditId === lead.id;
+            const isOverdue = normalizeDateToYMD(lead.call1Date || lead.call2Date || lead.call3Date || lead.confirmDate) === yest;
+            const rowClass = isOverdue ? 'followup-overdue' : 'followup-highlight';
+            html += `<div class="border border-[#EFE8DE] rounded-xl bg-white shadow-sm overflow-hidden mb-3 ${rowClass}">
+                <div class="p-4 lead-row" onclick="toggleLead('${lead.id}')" style="min-height:70px;">
+                    <div class="flex justify-between items-start flex-wrap gap-2">
+                        <div>
+                            <div class="font-bold text-[#3E2C1B] flex items-center gap-2">
+                                ${escapeHtml(lead.name)}
+                                ${isOverdue ? '<span class="text-xs bg-[#C94A4A] text-white px-2 py-0.5 rounded-full font-bold">⚠️ OVERDUE</span>' : '<span class="text-xs bg-[#C9A96E] text-[#2D241A] px-2 py-0.5 rounded-full font-bold">Due Today</span>'}
+                            </div>
+                            <div class="text-sm text-[#6B5A44]">📞 ${lead.phone} • ${lead.platform}</div>
+                            <div class="text-xs text-[#8A7A66] mt-1">Scheduled: ${getNextAction(lead)}</div>
+                        </div>
+                        <div class="flex gap-2 flex-wrap items-center">
+                            <button onclick="event.stopPropagation(); quickUpdate('${lead.id}','Picked')" class="px-3 py-1.5 bg-[#2B7A4B] hover:bg-[#1F5E38] text-white rounded-lg text-xs font-semibold transition"><i class="fas fa-check mr-1"></i> Picked</button>
+                            <button onclick="event.stopPropagation(); quickUpdate('${lead.id}','Not Picked')" class="px-3 py-1.5 bg-[#C94A4A] hover:bg-[#A53636] text-white rounded-lg text-xs font-semibold transition"><i class="fas fa-times mr-1"></i> Not Picked</button>
+                            <a href="tel:${lead.phone}" onclick="event.stopPropagation();" class="px-3 py-1.5 bg-[#3E2C1B] hover:bg-[#2D241A] text-white rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"><i class="fas fa-phone"></i> Call</a>
+                            <a href="https://wa.me/${lead.phone}" target="_blank" onclick="event.stopPropagation();" class="px-3 py-1.5 bg-[#2B7A4B] hover:bg-[#1F5E38] text-white rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+                            <button onclick="event.stopPropagation(); toggleEdit('${lead.id}', event)" class="btn-edit-toggle" title="Edit Customer Information">
+                                <i class="fas fa-pen"></i>
+                            </button>
+                            <i id="icon-${lead.id}" class="fas fa-chevron-down ml-2 transition-transform ${isExp ? 'rotated' : ''}" style="font-size:14px; cursor:pointer;"></i>
+                        </div>
+                    </div>
+                </div>
+                <div id="ws-${lead.id}" class="workspace ${isExp ? 'expanded' : 'collapsed'}">${getCallsWorkspaceHTML(lead)}</div>
+                <div id="ws-edit-${lead.id}" class="workspace-edit ${isEditExp ? 'expanded' : 'collapsed'}">${getEditWorkspaceHTML(lead)}</div>
+            </div>`;
+        });
+        container.innerHTML = html;
+    }
+    document.getElementById('todayDateDisplay').innerText = `${getTodayDisplay()} (Includes overdue from yesterday)`;
+}
+
+function renderAll() {
+    renderDashboard();
+    renderCustomerContent();
+    renderFollowups();
+}
+
+function exportToExcel() {
+    if (allCombined.length === 0) { showToast('No data to export', true); return; }
+    try {
+        const wb = XLSX.utils.book_new();
+        const socialData = socialLeads.map(l => ({
+            'created_time': l.date || '',
+            'Platform': l.platform || '',
+            'Full name': l.name || '',
+            'Contact No.': l.phone || '',
+            'Vehicle': l.vehicle || '',
+            'Service': l.service || '',
+            'Service Required': l.structuredData?.services?.join(', ') || '',
+            'Vehicle Age (Month)': l.structuredData?.vehicleAgeMonths || '',
+            'Estimated Amount': l.structuredData?.estimatedAmount || '',
+            'Customer Budget': l.structuredData?.budget || '',
+            'Interest Level': l.structuredData?.interestLevel || '',
+            'Location': l.structuredData?.fromHyderabad || '',
+            'Master Data Correct?': l.structuredData?.masterDataCorrect || '',
+            'Additional Notes': l.structuredData?.additionalNotes || '',
+            'Call 1 Date': l.call1Date || '',
+            'Call 1 Status': l.call1Status || '',
+            'Call 2 Date': l.call2Date || '',
+            'Call 2 Status': l.call2Status || '',
+            'Call 3 Date': l.call3Date || '',
+            'Call 3 Status': l.call3Status || '',
+            'Confirmation Call Date': l.confirmDate || '',
+            'Confirmation call': l.converted ? 'Completed' : (l.confirmDate ? 'Scheduled' : 'Pending'),
+            'Status': l.converted ? 'Converted' : (l.lost ? 'Lost' : 'Active'),
+            'Next Action': getNextAction(l),
+            'Score': l.score || 0
+        }));
+        const wcData = allCombined.filter(l => l.sourceType !== 'social').map(l => ({
+            'created_time': l.date || '',
+            'Platform': l.platform || '',
+            'Full name': l.name || '',
+            'Contact No.': l.phone || '',
+            'Vehicle': l.vehicle || '',
+            'Service': l.service || '',
+            'Service Required': l.structuredData?.services?.join(', ') || '',
+            'Vehicle Age (Month)': l.structuredData?.vehicleAgeMonths || '',
+            'Estimated Amount': l.structuredData?.estimatedAmount || '',
+            'Customer Budget': l.structuredData?.budget || '',
+            'Interest Level': l.structuredData?.interestLevel || '',
+            'Location': l.structuredData?.fromHyderabad || '',
+            'Master Data Correct?': l.structuredData?.masterDataCorrect || '',
+            'Additional Notes': l.structuredData?.additionalNotes || '',
+            'Call 1 Date': l.call1Date || '',
+            'Call 1 Status': l.call1Status || '',
+            'Call 2 Date': l.call2Date || '',
+            'Call 2 Status': l.call2Status || '',
+            'Call 3 Date': l.call3Date || '',
+            'Call 3 Status': l.call3Status || '',
+            'Confirmation Call Date': l.confirmDate || '',
+            'Confirmation call': l.converted ? 'Completed' : (l.confirmDate ? 'Scheduled' : 'Pending'),
+            'Status': l.converted ? 'Converted' : (l.lost ? 'Lost' : 'Active'),
+            'Next Action': getNextAction(l),
+            'Score': l.score || 0
+        }));
+        if (socialData.length > 0) { const ws = XLSX.utils.json_to_sheet(socialData); XLSX.utils.book_append_sheet(wb, ws, 'Social Media'); }
+        if (wcData.length > 0) { const ws = XLSX.utils.json_to_sheet(wcData); XLSX.utils.book_append_sheet(wb, ws, 'Walk-in & Call'); }
+        const allData = allCombined.map(l => ({
+            'created_time': l.date || '',
+            'Platform': l.platform || '',
+            'Full name': l.name || '',
+            'Contact No.': l.phone || '',
+            'Vehicle': l.vehicle || '',
+            'Service': l.service || '',
+            'Service Required': l.structuredData?.services?.join(', ') || '',
+            'Vehicle Age (Month)': l.structuredData?.vehicleAgeMonths || '',
+            'Estimated Amount': l.structuredData?.estimatedAmount || '',
+            'Customer Budget': l.structuredData?.budget || '',
+            'Interest Level': l.structuredData?.interestLevel || '',
+            'Location': l.structuredData?.fromHyderabad || '',
+            'Master Data Correct?': l.structuredData?.masterDataCorrect || '',
+            'Additional Notes': l.structuredData?.additionalNotes || '',
+            'Call 1 Date': l.call1Date || '',
+            'Call 1 Status': l.call1Status || '',
+            'Call 2 Date': l.call2Date || '',
+            'Call 2 Status': l.call2Status || '',
+            'Call 3 Date': l.call3Date || '',
+            'Call 3 Status': l.call3Status || '',
+            'Confirmation Call Date': l.confirmDate || '',
+            'Confirmation call': l.converted ? 'Completed' : (l.confirmDate ? 'Scheduled' : 'Pending'),
+            'Status': l.converted ? 'Converted' : (l.lost ? 'Lost' : 'Active'),
+            'Next Action': getNextAction(l),
+            'Score': l.score || 0,
+            'Source': l.sourceType === 'social' ? 'Social Media' : 'Walk-in/Call'
+        }));
+        const wsAll = XLSX.utils.json_to_sheet(allData);
+        XLSX.utils.book_append_sheet(wb, wsAll, 'All Leads');
+        XLSX.writeFile(wb, `CARZOO_CRM_Export_${getTodayDisplay().replace(/\//g,'-')}.xlsx`);
+        showToast(`✅ Exported ${allCombined.length} leads`);
+    } catch (e) { showToast(`❌ Export failed`, true); }
+}
+
+function exportFollowupsToExcel() {
+    const today = getTodayDateString();
+    const yest = getYesterdayDateString();
+    const leads = allCombined.filter(lead => {
+        if (lead.lost || lead.converted) return false;
+        const c1 = normalizeDateToYMD(lead.call1Date);
+        const c2 = normalizeDateToYMD(lead.call2Date);
+        const c3 = normalizeDateToYMD(lead.call3Date);
+        const cf = normalizeDateToYMD(lead.confirmDate);
+        return ((c1 === today || c1 === yest) && lead.call1Status === 'Pending') ||
+               ((c2 === today || c2 === yest) && lead.call2Status === 'Pending') ||
+               ((c3 === today || c3 === yest) && lead.call3Status === 'Pending') ||
+               ((cf === today || cf === yest) && !lead.converted);
+    });
+    if (leads.length === 0) { showToast('No follow-ups to export', true); return; }
+    try {
+        const data = leads.map(l => {
+            let due = '';
+            const c1 = normalizeDateToYMD(l.call1Date);
+            const c2 = normalizeDateToYMD(l.call2Date);
+            const c3 = normalizeDateToYMD(l.call3Date);
+            const cf = normalizeDateToYMD(l.confirmDate);
+            if ((c1 === today || c1 === yest) && l.call1Status === 'Pending') due = c1;
+            else if ((c2 === today || c2 === yest) && l.call2Status === 'Pending') due = c2;
+            else if ((c3 === today || c3 === yest) && l.call3Status === 'Pending') due = c3;
+            else if ((cf === today || cf === yest) && !l.converted) due = cf;
+            return {
+                'Full Name': l.name || '',
+                'Contact': l.phone || '',
+                'Platform': l.platform || '',
+                'Vehicle': l.vehicle || '',
+                'Service': l.service || '',
+                'Due Date': formatDateForDisplay(due),
+                'Status': due === yest ? 'OVERDUE' : 'Due Today',
+                'Next Action': getNextAction(l),
+                'Call 1 Status': l.call1Status || '',
+                'Call 2 Status': l.call2Status || '',
+                'Call 3 Status': l.call3Status || '',
+                'Confirmation': l.converted ? 'Converted' : (l.confirmDate ? 'Scheduled' : 'Pending'),
+                'Score': l.score || 0
+            };
+        });
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(data);
+        ws['!cols'] = [{wch:25},{wch:15},{wch:15},{wch:20},{wch:20},{wch:15},{wch:12},{wch:15},{wch:15},{wch:15},{wch:15},{wch:15},{wch:10}];
+        XLSX.utils.book_append_sheet(wb, ws, 'Follow-ups');
+        XLSX.writeFile(wb, `CARZOO_Followups_${getTodayDisplay().replace(/\//g,'-')}.xlsx`);
+        showToast(`✅ Exported ${leads.length} follow-ups`);
+    } catch (e) { showToast(`❌ Export failed`, true); }
+}
+
+// ============================================================
+// PAGE NAVIGATION
+// ============================================================
+
+function showPage(page) {
+    ['dashboard','customerData','followups','admin'].forEach(p => document.getElementById(`${p}Page`).classList.add('hidden'));
+    document.getElementById(`${page}Page`).classList.remove('hidden');
+    document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active-sidebar'));
+    document.getElementById(`nav-${page}`).classList.add('active-sidebar');
+    if (page === 'customerData') renderCustomerContent();
+    if (page === 'followups') renderFollowups();
+    if (page === 'dashboard') renderDashboard();
+    if (page === 'admin' && currentUser && currentUser.isAdmin) {
+        loadUsers();
+    }
+}
+
+// ============================================================
+// NEW LEAD MODAL
+// ============================================================
+
+window.openNewLeadModal = (type) => {
+    document.getElementById('newLeadType').value = type;
+    document.getElementById('modalTitle').innerText = type === 'Walk-in' ? '🚪 New Walk-in' : '📞 New Call';
+    document.getElementById('newLeadForm').reset();
+    document.getElementById('newLeadModal').classList.remove('hidden');
+};
+window.closeModal = () => {
+    document.getElementById('newLeadModal').classList.add('hidden');
+};
+document.getElementById('newLeadForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const type = document.getElementById('newLeadType').value;
+    const form = {
+        name: document.getElementById('newName').value,
+        phone: document.getElementById('newPhone').value,
+        vehicle: document.getElementById('newVehicle').value,
+        service: document.getElementById('newService').value,
+        vehicleAge: document.getElementById('newVehicleAge').value,
+        quotedAmount: document.getElementById('newQuotedAmount').value,
+        budget: document.getElementById('newBudget').value,
+        notes: document.getElementById('newNotes').value
+    };
+    await saveNewLead(type, form);
+    closeModal();
+});
+
+// ============================================================
+// CUSTOMER TAB
+// ============================================================
+
+window.setCustomerTab = function(tab) {
+    currentCustomerTab = tab;
+    expandedId = null;
+    expandedEditId = null;
+    document.querySelectorAll('.customer-tab-btn').forEach(b => b.classList.remove('active', 'bg-[#3E2C1B]', 'text-white'));
+    if (tab === 'social') document.getElementById('tabSocial').classList.add('active', 'bg-[#3E2C1B]', 'text-white');
+    else if (tab === 'walkin') document.getElementById('tabWalkin').classList.add('active', 'bg-[#3E2C1B]', 'text-white');
+    else if (tab === 'call') document.getElementById('tabCall').classList.add('active', 'bg-[#3E2C1B]', 'text-white');
+    renderCustomerContent();
+};
+
+// ============================================================
+// EVENT LISTENERS
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM loaded');
+    const exportBtn = document.getElementById('exportExcelBtn');
+    if (exportBtn) exportBtn.addEventListener('click', exportToExcel);
+    const exportFollowupBtn = document.getElementById('exportFollowupBtn');
+    if (exportFollowupBtn) exportFollowupBtn.addEventListener('click', exportFollowupsToExcel);
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', async () => {
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('refresh-spin');
+            await loadAllData(true);
+            icon.classList.remove('refresh-spin');
+        });
+    }
+    checkAutoLogin();
+});
+
+// ============================================================
+// ENTER KEY SUPPORT
+// ============================================================
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        const loginOverlay = document.getElementById('loginOverlay');
+        if (!loginOverlay.classList.contains('hidden')) {
+            document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+        }
+    }
+});
+
+// ============================================================
+// INIT
+// ============================================================
+
+checkAutoLogin();
+console.log('🚀 CARZOO CRM loaded successfully!');
+
+// Attach all functions to window
+window.makeAdmin = makeAdmin;
+window.removeAdmin = removeAdmin;
+window.deleteUser = deleteUser;
+window.loadUsers = loadUsers;
+window.editUser = editUser;
+window.closeEditModal = closeEditModal;
+window.openAddUserModal = openAddUserModal;
+window.closeAddUserModal = closeAddUserModal;
+window.toggleLead = toggleLead;
+window.toggleEdit = toggleEdit;
+window.saveStructuredData = saveStructuredData;
+window.quickUpdate = quickUpdate;
+window.scheduleForLead = scheduleForLead;
+window.markLeadLost = markLeadLost;
+window.setCustomerTab = setCustomerTab;
+window.openNewLeadModal = openNewLeadModal;
+window.closeModal = closeModal;
+
+</script>
+</body>
+</html>
