@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+    <title>3M Car Care CRM — Professional</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        /* === 3M Professional palette: Red, Blue, Black, White/Gray === */
+        :root {
+            --brand-red: #CC092F;
+            --brand-red-dark: #A80726;
+            --brand-blue: #004C97;
+            --brand-blue-dark: #003A73;
+            --brand-black: #1A1A1A;
+            --brand-gray: #EFF1F3;
+            --brand-gray-light: #F7F8FA;
+            --brand-gray-dark: #5E6A77;
+            --card-shadow: 0 4px 16px rgba(0,0,0,0.06);
+        }
+        body {
+            background-color: #F0F2F5;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+        .sidebar-item {
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-radius: 12px;
+            margin: 4px 14px;
+            padding: 10px 16px;
+            color: #2C3E50;
+            font-weight: 500;
+        }
+        .sidebar-item:hover { background-color: #E8EBEE; }
+        .active-sidebar {
+            background-color: var(--brand-blue) !important;
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(0,76,151,0.25);
+        }
+        .workspace { transition: all 0.25s ease; overflow: hidden; }
+        .workspace.collapsed { max-height: 0; padding: 0; opacity: 0; margin: 0; }
+        .workspace.expanded { max-height: 2600px; opacity: 1; padding: 16px; }
+        .toast {
+            position: fixed; bottom: 24px; right: 24px; z-index: 1000;
+            background: white; border-radius: 14px; box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            padding: 14px 24px; border-left: 6px solid var(--brand-red);
+            font-weight: 500;
+            color: #1A1A1A;
+        }
+        .rotated { transform: rotate(180deg); transition: transform 0.2s; }
+        .btn-primary {
+            background-color: var(--brand-blue);
+            color: white;
+            transition: 0.2s;
+            font-weight: 600;
+        }
+        .btn-primary:hover { background-color: var(--brand-blue-dark); }
+        .btn-red {
+            background-color: var(--brand-red);
+            color: white;
+            transition: 0.2s;
+            font-weight: 600;
+        }
+        .btn-red:hover { background-color: var(--brand-red-dark); }
+        .brand-header {
+            background: linear-gradient(145deg, #1A1A1A 0%, #2C3E50 100%);
+            border-bottom: 3px solid var(--brand-red);
+        }
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: white; border-radius: 24px; max-width: 550px; width: 90%;
+            max-height: 85vh; overflow-y: auto; padding: 24px;
+        }
+        .checkbox-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+        .checkbox-option {
+            display: flex; align-items: center; gap: 6px; background: #F0F2F5;
+            padding: 5px 14px; border-radius: 40px; cursor: pointer; font-size: 12px;
+            transition: 0.15s;
+        }
+        .checkbox-option:has(input:checked) {
+            background: var(--brand-blue);
+            color: white;
+        }
+        .status-badge {
+            display: inline-block; padding: 4px 14px; border-radius: 999px;
+            font-size: 0.75rem; font-weight: 600;
+        }
+        .empty-state { text-align: center; padding: 60px 20px; color: #8A9AA8; }
+        .customer-tab-btn.active {
+            background-color: var(--brand-blue) !important;
+            color: white !important;
+        }
+        .refresh-spin { animation: spin 0.5s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .lead-row { 
+            cursor: pointer; 
+            transition: background 0.15s; 
+            position: relative;
+            user-select: none;
+        }
+        .lead-row:hover { background-color: #F5F7FA; }
+        .form-input, .form-select, .form-textarea {
+            transition: all 0.2s;
+            border: 1px solid #D0D7DE;
+            border-radius: 10px;
+            padding: 10px 14px;
+            width: 100%;
+            background: white;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--brand-blue);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0,76,151,0.2);
+        }
+        .followup-highlight { background-color: #F0F7FF; border-left: 4px solid var(--brand-blue); }
+        .followup-overdue { background-color: #FFF0F0; border-left: 4px solid var(--brand-red); }
+
+        .notification-badge {
+            position: absolute; top: 10px; left: 10px; width: 24px; height: 24px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-size: 12px; font-weight: bold; color: white;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2); z-index: 10;
+            animation: pulse 1.5s infinite;
+        }
+        .badge-red { background-color: var(--brand-red); }
+        .badge-blue { background-color: var(--brand-blue); }
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .btn-export-followup {
+            background-color: var(--brand-red);
+            color: white;
+            transition: all 0.2s;
+        }
+        .btn-export-followup:hover {
+            background-color: var(--brand-red-dark);
+            transform: scale(1.02);
+        }
+        .stat-card {
+            background: white;
+            border-radius: 18px;
+            padding: 20px 16px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid #E4E9EE;
+        }
+        .stat-card .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+        .lead-type-card {
+            border-radius: 18px;
+            padding: 18px 12px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid #E4E9EE;
+            background: white;
+        }
+        .bg-soft-blue { background-color: #F0F6FF; }
+        .border-red { border-color: var(--brand-red); }
+        .text-red { color: var(--brand-red); }
+        .text-blue { color: var(--brand-blue); }
+        .bg-red-soft { background-color: #FFF0F0; }
+        .section-divider {
+            border-bottom: 2px solid var(--brand-blue);
+            padding-bottom: 6px;
+            margin-bottom: 12px;
+        }
+        .section-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--brand-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(255,255,255,0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            backdrop-filter: blur(4px);
+        }
+        .loading-spinner {
+            border: 4px solid #E4E9EE;
+            border-top: 4px solid var(--brand-blue);
+            border-radius: 50%;
+            width: 48px;
+            height: 48px;
+            animation: spin 0.8s linear infinite;
+        }
+        .toggle-icon {
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+        .lead-click-area {
+            flex: 1;
+            min-width: 0;
+        }
+        .search-container {
+            background: white;
+            border-radius: 12px;
+            padding: 8px 16px;
+            border: 1px solid #E4E9EE;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            max-width: 500px;
+            flex: 1;
+        }
+        .search-container input {
+            border: none;
+            outline: none;
+            flex: 1;
+            padding: 8px 0;
+            font-size: 0.9rem;
+            color: #1A1A1A;
+            background: transparent;
+        }
+        .search-container input::placeholder {
+            color: #8A9AA8;
+        }
+        .search-container .search-icon {
+            color: #8A9AA8;
+            font-size: 0.9rem;
+        }
+        .search-container .clear-search {
+            color: #8A9AA8;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 4px;
+            border-radius: 50%;
+            transition: all 0.2s;
+        }
+        .search-container .clear-search:hover {
+            background: #F0F2F5;
+            color: #1A1A1A;
+        }
+        .search-results-count {
+            font-size: 0.8rem;
+            color: #5E6A77;
+            padding: 4px 12px;
+            background: #F7F8FA;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        .search-mode-badge {
+            font-size: 0.7rem;
+            background: var(--brand-blue);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        /* Pagination styles */
+        .pagination-controls {
+            background: white;
+            border-radius: 14px;
+            padding: 16px 20px;
+            border: 1px solid #E4E9EE;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 20px;
+            box-shadow: var(--card-shadow);
+        }
+        .pagination-controls .info-text {
+            font-size: 0.9rem;
+            color: #5E6A77;
+        }
+        .pagination-controls .info-text strong {
+            color: #1A1A1A;
+        }
+        .pagination-controls .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .pagination-controls .btn-page {
+            padding: 8px 20px;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        .pagination-controls .btn-page:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .pagination-controls .btn-prev {
+            background: #E8EBEE;
+            color: #2C3E50;
+        }
+        .pagination-controls .btn-prev:hover:not(:disabled) {
+            background: #D5DCE3;
+        }
+        .pagination-controls .btn-next {
+            background: var(--brand-red);
+            color: white;
+        }
+        .pagination-controls .btn-next:hover:not(:disabled) {
+            background: var(--brand-red-dark);
+        }
+        .pagination-controls .btn-first {
+            background: var(--brand-blue);
+            color: white;
+        }
+        .pagination-controls .btn-first:hover:not(:disabled) {
+            background: var(--brand-blue-dark);
+        }
+        /* Date Range Filter */
+        .filter-section {
+            background: #F7F8FA;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin: 8px 14px;
+            border: 1px solid #E4E9EE;
+        }
+        .filter-section label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #5E6A77;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .filter-section input[type="date"] {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #D0D7DE;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            background: white;
+            margin-bottom: 8px;
+        }
+        .filter-section input[type="date"]:focus {
+            border-color: var(--brand-blue);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(0,76,151,0.15);
+        }
+        .filter-section .filter-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .filter-section .filter-actions button {
+            flex: 1;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        .filter-section .filter-actions .btn-apply {
+            background: var(--brand-blue);
+            color: white;
+        }
+        .filter-section .filter-actions .btn-apply:hover {
+            background: var(--brand-blue-dark);
+        }
+        .filter-section .filter-actions .btn-reset {
+            background: #E8EBEE;
+            color: #2C3E50;
+        }
+        .filter-section .filter-actions .btn-reset:hover {
+            background: #D5DCE3;
+        }
+        .filter-section .active-filter-badge {
+            display: inline-block;
+            background: var(--brand-blue);
+            color: white;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-top: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- LOADING OVERLAY -->
+<div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="text-center">
+        <div class="loading-spinner mx-auto"></div>
+        <p class="mt-4 text-[#5E6A77] font-medium">Loading leads...</p>
+    </div>
+</div>
+
+<!-- HEADER -->
+<div class="brand-header shadow-md sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center gap-4 flex-wrap">
+        <div class="flex items-center gap-3">
+            <div class="bg-[#CC092F] rounded-xl w-10 h-10 flex items-center justify-center shadow-sm">
+                <i class="fas fa-car-side text-2xl text-white"></i>
+            </div>
+            <div>
+                <div class="text-white font-bold text-xl tracking-tight">3M Car Care CRM</div>
+                <div class="text-[#8A9AA8] text-xs font-medium">Live Sync · Professional</div>
+            </div>
+        </div>
+        
+        <!-- SEARCH BAR -->
+        <div class="search-container" id="searchContainer">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="globalSearchInput" placeholder="Search by name, phone, vehicle..." />
+            <span id="clearSearch" class="clear-search" style="display:none;">✕</span>
+            <span id="searchResultsCount" class="search-results-count" style="display:none;"></span>
+            <span id="searchModeBadge" class="search-mode-badge" style="display:none;">Global Search</span>
+        </div>
+        
+        <div class="flex gap-2">
+            <button id="exportExcelBtn" class="px-4 py-1.5 bg-[#004C97] hover:bg-[#003A73] text-white rounded-xl text-sm shadow-sm transition flex items-center gap-1">
+                <i class="fas fa-file-excel mr-1"></i> Export All
+            </button>
+            <button id="refreshBtn" class="px-4 py-1.5 bg-[#5E6A77] hover:bg-[#3A4754] text-white rounded-xl text-sm shadow-sm transition flex items-center gap-1">
+                <i id="refreshIcon" class="fas fa-sync-alt mr-1"></i> Sync All
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="flex max-w-7xl mx-auto">
+    <!-- SIDEBAR -->
+    <div id="sidebar" class="w-64 bg-white min-h-screen border-r border-[#E4E9EE] shrink-0">
+        <nav class="py-5">
+            <div onclick="showPage('dashboard')" id="nav-dashboard" class="sidebar-item flex items-center gap-3 active-sidebar">
+                <i class="fas fa-chart-line w-5"></i><span>Dashboard</span>
+            </div>
+            <div onclick="showPage('customerData')" id="nav-customerData" class="sidebar-item flex items-center gap-3">
+                <i class="fas fa-users w-5"></i><span>Customer Data</span>
+            </div>
+            <div onclick="showPage('followups')" id="nav-followups" class="sidebar-item flex items-center gap-3">
+                <i class="fas fa-calendar-day w-5"></i><span>Follow-ups (Today)</span>
+            </div>
+            <div class="border-t my-4 mx-4 border-[#E4E9EE]"></div>
+            <div class="px-4 py-2 text-xs text-[#5E6A77] uppercase tracking-wider font-semibold">Quick Actions</div>
+            <div class="px-4 py-2">
+                <button onclick="openNewLeadModal('Walk-in')" class="w-full bg-[#CC092F] hover:bg-[#A80726] text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition flex items-center justify-center gap-2">
+                    <i class="fas fa-door-open"></i> New Walk-in
+                </button>
+            </div>
+            <div class="px-4 py-2">
+                <button onclick="openNewLeadModal('Call')" class="w-full bg-[#004C97] hover:bg-[#003A73] text-white py-2.5 rounded-xl text-sm font-semibold shadow-sm transition flex items-center justify-center gap-2">
+                    <i class="fas fa-phone"></i> New Call Lead
+                </button>
+            </div>
+            
+            <!-- DATE RANGE FILTER -->
+            <div class="border-t my-4 mx-4 border-[#E4E9EE]"></div>
+            <div class="px-4 py-2 text-xs text-[#5E6A77] uppercase tracking-wider font-semibold">Date Range Filter</div>
+            <div class="filter-section">
+                <label>From Date</label>
+                <input type="date" id="filterStartDate" />
+                <label>To Date</label>
+                <input type="date" id="filterEndDate" />
+                <div class="filter-actions">
+                    <button class="btn-apply" onclick="applyDateFilter()"><i class="fas fa-filter mr-1"></i> Apply</button>
+                    <button class="btn-reset" onclick="resetDateFilter()"><i class="fas fa-undo mr-1"></i> Reset</button>
+                </div>
+                <div id="activeFilterBadge" class="active-filter-badge" style="display:none;">
+                    <i class="fas fa-calendar-alt mr-1"></i> <span id="filterDateRangeText">Filtered</span>
+                </div>
+            </div>
+        </nav>
+    </div>
+
+    <!-- CONTENT -->
+    <div class="flex-1 p-5">
+        <!-- DASHBOARD -->
+        <div id="dashboardPage">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+                <div class="stat-card"><p class="text-[#5E6A77] text-sm font-medium">Total Leads</p><p id="totalLeads" class="stat-value text-[#1A1A1A]">0</p></div>
+                <div class="stat-card"><p class="text-[#5E6A77] text-sm font-medium">Active</p><p id="activeLeads" class="stat-value text-[#004C97]">0</p></div>
+                <div class="stat-card"><p class="text-[#5E6A77] text-sm font-medium">Pick Rate</p><p id="pickRate" class="stat-value text-[#1A7A4B]">0%</p></div>
+                <div class="stat-card"><p class="text-[#5E6A77] text-sm font-medium">Converted</p><p id="convertedCount" class="stat-value text-[#7A4B8A]">0</p></div>
+                <div class="stat-card"><p class="text-[#5E6A77] text-sm font-medium">Lost</p><p id="lostCount" class="stat-value text-[#CC092F]">0</p></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-5">
+                <div class="lead-type-card text-center">
+                    <div class="text-2xl font-bold text-[#1A1A1A]" id="socialCount">0</div>
+                    <div class="text-sm text-[#5E6A77]">📱 Social Media</div>
+                </div>
+                <div class="lead-type-card text-center">
+                    <div class="text-2xl font-bold text-[#1A1A1A]" id="walkinCount">0</div>
+                    <div class="text-sm text-[#5E6A77]">🚪 Walk-in</div>
+                </div>
+                <div class="lead-type-card text-center">
+                    <div class="text-2xl font-bold text-[#1A1A1A]" id="callCount">0</div>
+                    <div class="text-sm text-[#5E6A77]">📞 Call</div>
+                </div>
+                <div class="lead-type-card text-center border-2 border-[#CC092F] bg-[#FFF8F8]">
+                    <div class="text-2xl font-bold text-[#CC092F]" id="followupCount">0</div>
+                    <div class="text-sm text-[#5E6A77]">⏰ Follow-ups Due</div>
+                    <div class="text-xs text-[#8A9AA8] mt-1">Today + Overdue</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CUSTOMER DATA -->
+        <div id="customerDataPage" class="hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-[#E4E9EE] overflow-hidden">
+                <div class="border-b border-[#E4E9EE] p-4 bg-[#F7F8FA]">
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="setCustomerTab('social')" id="tabSocial" class="customer-tab-btn px-5 py-2 rounded-xl text-sm font-medium bg-[#E8EBEE] hover:bg-[#D5DCE3] transition">📱 Social Media</button>
+                        <button onclick="setCustomerTab('walkin')" id="tabWalkin" class="customer-tab-btn px-5 py-2 rounded-xl text-sm font-medium bg-[#E8EBEE] hover:bg-[#D5DCE3] transition">🚪 Walk-in</button>
+                        <button onclick="setCustomerTab('call')" id="tabCall" class="customer-tab-btn px-5 py-2 rounded-xl text-sm font-medium bg-[#E8EBEE] hover:bg-[#D5DCE3] transition">📞 Call</button>
+                    </div>
+                </div>
+                <div id="customerContent" class="p-5"></div>
+            </div>
+        </div>
+
+        <!-- FOLLOW-UPS -->
+        <div id="followupsPage" class="hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-[#E4E9EE]">
+                <div class="p-5 border-b border-[#E4E9EE] bg-[#F7F8FA] flex justify-between items-center flex-wrap gap-3">
+                    <div>
+                        <h2 class="text-xl font-bold text-[#1A1A1A]">⏰ Follow-ups</h2>
+                        <p class="text-sm text-[#5E6A77]"><span id="todayDateDisplay"></span> — Calls due today & overdue from yesterday</p>
+                    </div>
+                    <button id="exportFollowupBtn" class="px-5 py-2 btn-export-followup rounded-xl text-sm font-semibold shadow-sm transition flex items-center gap-2">
+                        <i class="fas fa-file-excel"></i> Export Follow-ups
+                    </button>
+                </div>
+                <div id="followupsList" class="divide-y divide-[#E4E9EE]"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- NEW LEAD MODAL -->
+<div id="newLeadModal" class="modal hidden" onclick="if(event.target===this) closeModal()">
+    <div class="modal-content">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-[#1A1A1A]" id="modalTitle">New Record</h3>
+            <button onclick="closeModal()" class="text-[#5E6A77] text-xl hover:text-[#1A1A1A]">✕</button>
+        </div>
+        <form id="newLeadForm" class="space-y-4">
+            <input type="hidden" id="newLeadType" />
+            <div><label class="text-sm font-semibold text-[#1A1A1A]">Full Name *</label><input type="text" id="newName" required class="form-input" /></div>
+            <div><label class="text-sm font-semibold text-[#1A1A1A]">Contact Number *</label><input type="tel" id="newPhone" required class="form-input" /></div>
+            <div><label class="text-sm font-semibold text-[#1A1A1A]">Vehicle Model</label><input type="text" id="newVehicle" class="form-input" /></div>
+            <div><label class="text-sm font-semibold text-[#1A1A1A]">Service Interested</label>
+                <select id="newService" class="form-select"><option value="">Select</option><option>PPF</option><option>Ceramic Coating</option><option>Detailing</option><option>Wrap</option><option>Tinting</option></select>
+            </div>
+            <div><label class="text-sm font-semibold text-[#1A1A1A]">Source Location</label>
+                <select id="newSource" class="form-select"><option value="">Select Source</option><option>Nallagandla</option><option>Kompally</option><option>Kokapet</option></select>
+            </div>
+            <div><label class="text-sm font-semibold text-[#1A1A1A]">Vehicle Age (Years)</label><input type="number" id="newVehicleAge" class="form-input" /></div>
+            <div><label class="text-sm font-semibold text-[#1A1A1A]">Quoted Amount (₹)</label><input type="number" id="newQuotedAmount" class="form-input" /></div>
+            <div><label class="text-sm font-semibold text-[#1A1A1A]">Customer Budget</label>
+                <select id="newBudget" class="form-select"><option value="">Select</option><option>₹10,000-25,000</option><option>₹25,000-50,000</option><option>₹50,000-75,000</option><option>₹75,000-1,00,000</option><option>₹1,00,000+</option></select>
+            </div>
+            <div><label class="text-sm font-semibold text-[#1A1A1A]">Notes</label><textarea id="newNotes" rows="2" class="form-textarea"></textarea></div>
+            <button type="submit" class="w-full py-3 bg-[#004C97] hover:bg-[#003A73] text-white rounded-xl font-bold transition shadow-sm">➕ Create Lead</button>
+        </form>
+    </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast hidden"></div>
+
+<script>
+    // ============================================================
+    //  CONFIG – UPDATE THESE URLs WITH YOUR OWN SHEET ENDPOINTS
+    // ============================================================
+    const SOCIAL_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz21-6LcYPd-PJaYBykAWfUtWsgYRh94wbCoeAo67buSFizV5m_Jf9myu95PU93nQZ2OA/exec";
+    const WALKIN_CALL_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbx6bO1oW_q1MGRFBCaRNNeCvdaEmwmOG9uaLVpEbNpXKhtxJPZaxgJGTBb1DoJLAuvS/exec";
+    // ============================================================
+
+    let socialLeads = [], walkinLeads = [], callLeads = [], allCombined = [];
+    let expandedId = null;
+    let expandedSection = null;
+    let currentCustomerTab = 'social';
+    let isLoading = false;
+    let currentSearchQuery = '';
+    let isSearchMode = false;
+
+    // ===== PAGINATION VARIABLES =====
+    let socialOffset = 0;
+    let socialTotalCount = 0;
+    let socialHasMore = false;
+    const SOCIAL_LIMIT = 100;
+
+    // ===== DATE FILTER VARIABLES =====
+    let filterStartDate = '';
+    let filterEndDate = '';
+    let isFilterActive = false;
+
+    const serviceOptions = ['PPF', 'Ceramic Coating', 'Detailing', 'Wrap', 'Tinting'];
+    const budgetRanges = ['₹10,000-25,000', '₹25,000-50,000', '₹50,000-75,000', '₹75,000-1,00,000', '₹1,00,000+'];
+    const locationOptions = ['Hyderabad', 'Andhra Pradesh', 'Karnataka', 'Telangana', 'Other'];
+    const yesNoOptions = ['Yes', 'No', 'Maybe', 'Not Sure'];
+    const masterDataOptions = ['Yes - All information is correct', 'No - Some information needs correction', 'Partially correct', 'Not verified yet'];
+    const sourceOptions = ['Nallagandla', 'Kompally', 'Kokapet'];
+
+    // ----- helpers -----
+    function getTodayDateString() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function getYesterdayDateString() { const d = new Date(); d.setDate(d.getDate()-1); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    function getTodayDisplay() { const d = new Date(); return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`; }
+    
+    // FIXED: Better date parsing for various formats
+    function normalizeDateToYMD(val) {
+        if (!val) return '';
+        if (val instanceof Date) {
+            return `${val.getFullYear()}-${String(val.getMonth()+1).padStart(2,'0')}-${String(val.getDate()).padStart(2,'0')}`;
+        }
+        let s = String(val).trim();
+        if (!s) return '';
+        
+        // Try to parse common date formats
+        // Format: MM/DD/YYYY or M/D/YYYY
+        let match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (match) {
+            const month = String(parseInt(match[1])).padStart(2, '0');
+            const day = String(parseInt(match[2])).padStart(2, '0');
+            return `${match[3]}-${month}-${day}`;
+        }
+        
+        // Format: DD/MM/YYYY
+        match = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (match) {
+            const day = String(parseInt(match[1])).padStart(2, '0');
+            const month = String(parseInt(match[2])).padStart(2, '0');
+            return `${match[3]}-${month}-${day}`;
+        }
+        
+        // Already YYYY-MM-DD
+        if (s.match(/^\d{4}-\d{2}-\d{2}/)) {
+            return s.substring(0, 10);
+        }
+        
+        // Try Date constructor
+        try {
+            const d = new Date(s);
+            if (!isNaN(d.getTime())) {
+                return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+            }
+        } catch(e) {}
+        
+        return s;
+    }
+    
+    function formatDateForDisplay(val) { 
+        if (!val) return '-'; 
+        const y = normalizeDateToYMD(val); 
+        if (!y) return '-'; 
+        const p = y.split('-'); 
+        return `${p[2]}/${p[1]}/${p[0]}`; 
+    }
+    
+    function cleanPhoneNumber(p) { if(!p) return ''; return String(p).replace(/[^\d]/g,''); }
+    function escapeHtml(str) { if(!str) return ''; return String(str).replace(/[&<>]/g, m=> m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'); }
+    function showToast(msg, isErr=false) { const t=document.getElementById('toast'); t.innerHTML=`<i class="fas fa-${isErr?'exclamation-triangle':'circle-info'} mr-2 ${isErr?'text-red-600':'text-blue-600'}"></i>${msg}`; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'), 3200); }
+
+    function isValidLeadName(name) {
+        if (!name) return false;
+        const lowerName = name.toLowerCase().trim();
+        const invalidTerms = ['full_name', 'first_name', 'last_name', 'full name', 'first name', 'last name', 'name', 'contact', 'phone', 'email'];
+        if (invalidTerms.some(term => lowerName === term)) return false;
+        if (lowerName.length < 2) return false;
+        return true;
+    }
+
+    // ----- score & next action -----
+    function calculateScore(lead) {
+        let s = 0;
+        if (lead.call1Status === 'Picked') s += 20; else if (lead.call1Status === 'Not Picked') s += 10;
+        if (lead.call2Status === 'Picked') s += 20; else if (lead.call2Status === 'Not Picked') s += 10;
+        if (lead.call3Status === 'Picked') s += 20; else if (lead.call3Status === 'Not Picked') s += 10;
+        if (lead.converted) s += 70;
+        return s;
+    }
+    function getNextAction(lead) {
+        if (lead.lost) return 'Lost';
+        if (lead.converted) return 'Converted';
+        if (lead.call1Status === 'Pending') return 'Call 1';
+        if (lead.call2Status === 'Pending') return 'Call 2';
+        if (lead.call3Status === 'Pending') return 'Call 3';
+        if (!lead.converted && !lead.confirmDate) return 'Confirmation';
+        return 'Active';
+    }
+    function getDueFollowUp(lead) {
+        if (lead.lost || lead.converted) return null;
+        const today = getTodayDateString(), yest = getYesterdayDateString();
+        if (lead.confirmDate && (normalizeDateToYMD(lead.confirmDate) === today || normalizeDateToYMD(lead.confirmDate) === yest) && !lead.converted) {
+            return { type: 'confirmation', badge: 'blue', icon: '✓', label: 'Confirmation Due', isOverdue: normalizeDateToYMD(lead.confirmDate) === yest };
+        }
+        const c1 = normalizeDateToYMD(lead.call1Date), c2 = normalizeDateToYMD(lead.call2Date), c3 = normalizeDateToYMD(lead.call3Date);
+        if ((c1 === today || c1 === yest) && lead.call1Status === 'Pending') return { type: 'call', badge: 'red', icon: '1', label: 'Call 1 Due', isOverdue: c1 === yest };
+        if ((c2 === today || c2 === yest) && lead.call2Status === 'Pending') return { type: 'call', badge: 'red', icon: '2', label: 'Call 2 Due', isOverdue: c2 === yest };
+        if ((c3 === today || c3 === yest) && lead.call3Status === 'Pending') return { type: 'call', badge: 'red', icon: '3', label: 'Call 3 Due', isOverdue: c3 === yest };
+        return null;
+    }
+    function getFollowupsCount() {
+        const today = getTodayDateString(), yest = getYesterdayDateString();
+        return allCombined.filter(lead => {
+            if (lead.lost || lead.converted) return false;
+            const c1 = normalizeDateToYMD(lead.call1Date), c2 = normalizeDateToYMD(lead.call2Date), c3 = normalizeDateToYMD(lead.call3Date), cf = normalizeDateToYMD(lead.confirmDate);
+            return ((c1 === today || c1 === yest) && lead.call1Status === 'Pending') || ((c2 === today || c2 === yest) && lead.call2Status === 'Pending') || ((c3 === today || c3 === yest) && lead.call3Status === 'Pending') || ((cf === today || cf === yest) && !lead.converted);
+        }).length;
+    }
+
+    // ----- Date Filter Functions -----
+    function applyDateFilter() {
+        const start = document.getElementById('filterStartDate').value;
+        const end = document.getElementById('filterEndDate').value;
+        
+        if (!start && !end) {
+            showToast('Please select at least one date', true);
+            return;
+        }
+        
+        filterStartDate = start;
+        filterEndDate = end;
+        isFilterActive = true;
+        
+        // Show badge
+        const badge = document.getElementById('activeFilterBadge');
+        badge.style.display = 'inline-block';
+        let rangeText = '';
+        if (start && end) rangeText = `${formatDateForDisplay(start)} - ${formatDateForDisplay(end)}`;
+        else if (start) rangeText = `From ${formatDateForDisplay(start)}`;
+        else if (end) rangeText = `Until ${formatDateForDisplay(end)}`;
+        document.getElementById('filterDateRangeText').textContent = rangeText;
+        
+        // Reset pagination and reload
+        socialOffset = 0;
+        loadDashboardData(true);
+    }
+
+    function resetDateFilter() {
+        document.getElementById('filterStartDate').value = '';
+        document.getElementById('filterEndDate').value = '';
+        filterStartDate = '';
+        filterEndDate = '';
+        isFilterActive = false;
+        document.getElementById('activeFilterBadge').style.display = 'none';
+        
+        // Reset pagination and reload
+        socialOffset = 0;
+        loadDashboardData(true);
+    }
+
+    // ----- update sheet -----
+    async function updateLeadInSheet(lead) {
+        const isSocial = lead.sourceType === 'social';
+        const targetUrl = isSocial ? SOCIAL_WEB_APP_URL : WALKIN_CALL_WEB_APP_URL;
+        const cleanPhone = cleanPhoneNumber(lead.phone);
+        
+        const payload = {
+            phone: cleanPhone,
+            Contact: cleanPhone,
+            name: lead.name || '',
+            platform: lead.platform || '',
+            vehicle: lead.vehicle || '',
+            service: lead.service || '',
+            date: lead.date || getTodayDateString(),
+            Source: lead.structuredData?.source || lead.source || lead.platform || '',
+            
+            call1Date: lead.call1Date || '',
+            call1Status: lead.call1Status || 'Pending',
+            call2Date: lead.call2Date || '',
+            call2Status: lead.call2Status || 'Pending',
+            call3Date: lead.call3Date || '',
+            call3Status: lead.call3Status || 'Pending',
+            confirmDate: lead.confirmDate || '',
+            converted: lead.converted || false,
+            lost: lead.lost || false,
+            nextAction: getNextAction(lead),
+            
+            structuredData: {
+                services: lead.structuredData?.services || [],
+                vehicleAgeMonths: lead.structuredData?.vehicleAgeMonths || '',
+                estimatedAmount: lead.structuredData?.estimatedAmount || '',
+                budget: lead.structuredData?.budget || '',
+                interestLevel: lead.structuredData?.interestLevel || '',
+                nearestLocation: lead.structuredData?.nearestLocation || '',
+                fromHyderabad: lead.structuredData?.fromHyderabad || '',
+                masterDataCorrect: lead.structuredData?.masterDataCorrect || '',
+                additionalNotes: lead.structuredData?.additionalNotes || '',
+                source: lead.structuredData?.source || lead.source || lead.platform || ''
+            }
+        };
+        
+        if (!isSocial) {
+            payload.fullName = lead.name || '';
+            payload.contactNo = cleanPhone;
+        }
+        
+        try {
+            await fetch(targetUrl, { 
+                method: 'POST', 
+                mode: 'no-cors', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(payload) 
+            });
+            return true;
+        } catch (e) {
+            console.error('Update error:', e);
+            return false;
+        }
+    }
+
+    async function saveNewLead(type, formData) {
+        const today = getTodayDateString();
+        const cleanPhone = cleanPhoneNumber(formData.phone);
+        const newLead = {
+            id: `temp_${Date.now()}`,
+            platform: type, 
+            sourceType: type === 'Call' ? 'call' : 'walkin',
+            name: formData.name, 
+            phone: cleanPhone, 
+            vehicle: formData.vehicle, 
+            service: formData.service,
+            source: formData.source || type,
+            date: today,
+            call1Date: type === 'Call' ? today : '', 
+            call1Status: type === 'Call' ? 'Skipped' : 'Pending',
+            call2Date: '', 
+            call2Status: 'Pending', 
+            call3Date: '', 
+            call3Status: 'Pending',
+            confirmDate: '', 
+            converted: false, 
+            lost: false,
+            structuredData: { 
+                services: [], 
+                vehicleAgeMonths: formData.vehicleAge || '', 
+                estimatedAmount: formData.quotedAmount || '', 
+                budget: formData.budget || '', 
+                interestLevel: '', 
+                nearestLocation: '', 
+                fromHyderabad: '', 
+                masterDataCorrect: '', 
+                additionalNotes: formData.notes || '',
+                source: formData.source || type
+            },
+            score: 0
+        };
+        showToast(`Creating ${type} lead...`);
+        const ok = await updateLeadInSheet(newLead);
+        if (ok) {
+            showToast(`✅ ${type} lead created: ${formData.name}`);
+            if (type === 'Walk-in') walkinLeads.unshift(newLead); 
+            else callLeads.unshift(newLead);
+            allCombined = [...socialLeads, ...walkinLeads, ...callLeads];
+            renderAll();
+            setTimeout(() => loadDashboardData(false), 2000);
+        } else showToast(`❌ Failed to create.`, true);
+    }
+
+    // ===== MAIN LOAD FUNCTION WITH PAGINATION AND DATE FILTER =====
+    async function loadDashboardData(showToastMsg = true) {
+        if (isLoading) return;
+        isLoading = true;
+        const overlay = document.getElementById('loadingOverlay');
+        overlay.classList.remove('hidden');
+        
+        if (showToastMsg) showToast('Loading latest leads...');
+        
+        try {
+            // Build URL with pagination and date filter
+            let socialUrl = `${SOCIAL_WEB_APP_URL}?offset=${socialOffset}&limit=${SOCIAL_LIMIT}`;
+            if (filterStartDate) socialUrl += `&startDate=${filterStartDate}`;
+            if (filterEndDate) socialUrl += `&endDate=${filterEndDate}`;
+            
+            console.log('📡 Fetching social leads:', socialUrl);
+            
+            const socialRes = await fetch(socialUrl);
+            const socialJson = await socialRes.json();
+            
+            console.log('📥 Social response:', socialJson);
+            
+            const allSocialLeads = [];
+            if (socialJson.status === 'success' && Array.isArray(socialJson.data)) {
+                socialTotalCount = socialJson.totalCount || 0;
+                socialHasMore = socialJson.hasMore || false;
+                
+                for (let row of socialJson.data) {
+                    if (!row['Full name'] && !row['Full Name']) continue;
+                    let name = row['Full name'] || row['Full Name'] || '';
+                    if (!isValidLeadName(name)) continue;
+                    
+                    let phone = cleanPhoneNumber(row['Contact'] || row['Contact No.'] || '');
+                    let leadDate = row['Date'] ? normalizeDateToYMD(row['Date']) : (row.created_time ? normalizeDateToYMD(row.created_time) : getTodayDateString());
+                    let c1Date = normalizeDateToYMD(row['Call 1 date']) || normalizeDateToYMD(row['Call 1 Date']) || leadDate || getTodayDateString();
+                    allSocialLeads.push({
+                        id: `social_${phone || Date.now()}`,
+                        platform: row['platform'] || row['Platform'] || 'Social Media', 
+                        sourceType: 'social',
+                        name: name, 
+                        phone: phone || 'No Phone', 
+                        vehicle: row['Vehicle'] || '', 
+                        service: row['service'] || row['Service'] || '',
+                        date: leadDate,
+                        source: row['Source'] || row['platform'] || 'Social Media',
+                        call1Date: c1Date, 
+                        call1Status: row['Call 1 Status'] || 'Pending',
+                        call2Date: normalizeDateToYMD(row['Call 2 date']) || normalizeDateToYMD(row['Call 2 Date']) || '', 
+                        call2Status: row['Call 2 Status'] || 'Pending',
+                        call3Date: normalizeDateToYMD(row['Call 3 date']) || normalizeDateToYMD(row['Call 3 Date']) || '', 
+                        call3Status: row['Call 3 Status'] || 'Pending',
+                        confirmDate: normalizeDateToYMD(row['Confirmation Call Date']) || '',
+                        converted: row['Status'] === 'Converted', 
+                        lost: row['Status'] === 'Lost',
+                        structuredData: {
+                            services: row['Service Required'] ? row['Service Required'].split(',').map(s=>s.trim()) : [],
+                            vehicleAgeMonths: row['Vehicle Age (Month)'] || '',
+                            estimatedAmount: row['Estimated Amount'] || '',
+                            budget: row['Customer Budget'] || '',
+                            interestLevel: row['Interest Level'] ? parseInt(row['Interest Level']) : null,
+                            nearestLocation: row['Nearest Location'] || '',
+                            fromHyderabad: row['From Hyderabad?'] || row['Location?'] || row['Location'] || '',
+                            masterDataCorrect: row['Master Data Correct?'] || '',
+                            additionalNotes: row['Additional Notes'] || '',
+                            source: row['Source'] || row['platform'] || 'Social Media'
+                        }
+                    });
+                }
+            }
+
+            // Load walkin/call leads (these don't have pagination yet)
+            const wcRes = await fetch(WALKIN_CALL_WEB_APP_URL);
+            const wcJson = await wcRes.json();
+            const allWalkinLeads = [], allCallLeads = [];
+            if (wcJson.status === 'success' && Array.isArray(wcJson.data)) {
+                for (let row of wcJson.data) {
+                    let platform = (row['platform'] || '').toString().trim();
+                    if (!platform) continue;
+                    let name = row['Full name'] || '';
+                    if (!isValidLeadName(name)) continue;
+                    
+                    let phone = cleanPhoneNumber(row['Contact'] || row['Contact No.'] || '');
+                    let leadDate = row['Date'] ? normalizeDateToYMD(row['Date']) : getTodayDateString();
+                    let c1Date = normalizeDateToYMD(row['Call 1 date']) || (platform === 'Call' ? leadDate : (platform === 'Walk-in' ? leadDate : ''));
+                    let c1Status = row['Call 1 Status'] || (platform === 'Call' ? 'Skipped' : 'Pending');
+                    let lead = {
+                        id: `wc_${phone || Date.now()}`,
+                        platform: platform, 
+                        sourceType: platform === 'Call' ? 'call' : 'walkin',
+                        name: name, 
+                        phone: phone || 'No Phone', 
+                        vehicle: row['Vehicle'] || '', 
+                        service: row['service'] || '',
+                        date: leadDate,
+                        source: row['Source'] || platform || '',
+                        call1Date: c1Date, 
+                        call1Status: c1Status,
+                        call2Date: normalizeDateToYMD(row['Call 2 date']) || '', 
+                        call2Status: row['Call 2 Status'] || 'Pending',
+                        call3Date: normalizeDateToYMD(row['Call 3 date']) || '', 
+                        call3Status: row['Call 3 Status'] || 'Pending',
+                        confirmDate: normalizeDateToYMD(row['Confirmation Call Date']) || '',
+                        converted: row['Status'] === 'Converted', 
+                        lost: row['Status'] === 'Lost',
+                        structuredData: {
+                            services: row['Service Required'] ? row['Service Required'].split(',').map(s=>s.trim()) : [],
+                            vehicleAgeMonths: row['Vehicle Age (Month)'] || '',
+                            estimatedAmount: row['Estimated Amount'] || '',
+                            budget: row['Customer Budget'] || '',
+                            interestLevel: row['Interest Level'] ? parseInt(row['Interest Level']) : null,
+                            nearestLocation: row['Nearest Location'] || '',
+                            fromHyderabad: row['From Hyderabad?'] || '',
+                            masterDataCorrect: row['Master Data Correct?'] || '',
+                            additionalNotes: row['Additional Notes'] || '',
+                            source: row['Source'] || platform || ''
+                        }
+                    };
+                    if (platform === 'Walk-in') allWalkinLeads.push(lead);
+                    else if (platform === 'Call') allCallLeads.push(lead);
+                }
+            }
+
+            // Sort and limit walkin/call
+            allWalkinLeads.sort((a, b) => {
+                const dateA = a.date || '';
+                const dateB = b.date || '';
+                if (dateA > dateB) return -1;
+                if (dateA < dateB) return 1;
+                return 0;
+            });
+            allCallLeads.sort((a, b) => {
+                const dateA = a.date || '';
+                const dateB = b.date || '';
+                if (dateA > dateB) return -1;
+                if (dateA < dateB) return 1;
+                return 0;
+            });
+
+            socialLeads = allSocialLeads;
+            walkinLeads = allWalkinLeads.slice(0, 100);
+            callLeads = allCallLeads.slice(0, 100);
+            
+            allCombined = [...socialLeads, ...walkinLeads, ...callLeads];
+            allCombined.forEach(l => l.score = calculateScore(l));
+            
+            renderAll();
+            if (showToastMsg) {
+                let filterMsg = isFilterActive ? ' (filtered)' : '';
+                const msg = `✅ Loaded ${socialLeads.length} Social (${socialOffset + socialLeads.length}/${socialTotalCount})${filterMsg}, ${walkinLeads.length} Walk-in, ${callLeads.length} Call leads`;
+                showToast(msg);
+            }
+        } catch (e) {
+            console.error('Load error:', e);
+            showToast(`❌ Error loading data`, true);
+        } finally {
+            isLoading = false;
+            overlay.classList.add('hidden');
+        }
+    }
+
+    // ===== PAGINATION UI =====
+    function renderPagination() {
+        // Only show pagination for social tab
+        if (currentCustomerTab !== 'social') {
+            const existing = document.querySelector('.pagination-controls');
+            if (existing) existing.remove();
+            return;
+        }
+        
+        const container = document.getElementById('customerContent');
+        if (!container) return;
+        
+        // Remove existing pagination
+        const existing = container.querySelector('.pagination-controls');
+        if (existing) existing.remove();
+        
+        // If no data or no pagination needed
+        if (socialTotalCount === 0) return;
+        if (!socialHasMore && socialOffset === 0) return;
+        
+        const start = socialOffset + 1;
+        const end = Math.min(socialOffset + socialLeads.length, socialTotalCount);
+        
+        const paginationDiv = document.createElement('div');
+        paginationDiv.className = 'pagination-controls';
+        paginationDiv.innerHTML = `
+            <span class="info-text">
+                Showing <strong>${start}-${end}</strong> of <strong>${socialTotalCount}</strong> leads
+                ${isFilterActive ? '<span class="ml-2 text-xs text-[#004C97] font-medium">(Filtered)</span>' : ''}
+            </span>
+            <div class="btn-group">
+                <button class="btn-page btn-first" onclick="goToFirstPage()" ${socialOffset === 0 ? 'disabled' : ''}>
+                    <i class="fas fa-fast-backward"></i> First
+                </button>
+                <button class="btn-page btn-prev" onclick="goToPreviousPage()" ${socialOffset === 0 ? 'disabled' : ''}>
+                    <i class="fas fa-arrow-left"></i> Previous 100
+                </button>
+                <button class="btn-page btn-next" onclick="goToNextPage()" ${!socialHasMore ? 'disabled' : ''}>
+                    Next 100 <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        `;
+        
+        container.appendChild(paginationDiv);
+    }
+
+    // ===== PAGINATION NAVIGATION =====
+    async function goToNextPage() {
+        if (!socialHasMore || isLoading) return;
+        socialOffset += SOCIAL_LIMIT;
+        await loadDashboardData(false);
+        renderPagination();
+        // Scroll to top of customer content
+        const customerContent = document.getElementById('customerContent');
+        if (customerContent) {
+            customerContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    async function goToPreviousPage() {
+        if (socialOffset === 0 || isLoading) return;
+        socialOffset = Math.max(0, socialOffset - SOCIAL_LIMIT);
+        await loadDashboardData(false);
+        renderPagination();
+        const customerContent = document.getElementById('customerContent');
+        if (customerContent) {
+            customerContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    async function goToFirstPage() {
+        if (socialOffset === 0 || isLoading) return;
+        socialOffset = 0;
+        await loadDashboardData(false);
+        renderPagination();
+        const customerContent = document.getElementById('customerContent');
+        if (customerContent) {
+            customerContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    // ===== FAST SERVER SEARCH =====
+async function searchAllLeads(query) {
+    if (!query || query.trim() === '') {
+        isSearchMode = false;
+        document.getElementById('searchModeBadge').style.display = 'none';
+        socialOffset = 0;
+        loadDashboardData(false);
+        return;
+    }
+    
+    try {
+        const lowerQuery = query.toLowerCase().trim();
+        let allResults = [];
+        
+        // Search social leads with pagination (start from 0)
+        let searchSocialUrl = `${SOCIAL_WEB_APP_URL}?offset=0&limit=1000&search=${encodeURIComponent(query)}`;
+        if (filterStartDate) searchSocialUrl += `&startDate=${filterStartDate}`;
+        if (filterEndDate) searchSocialUrl += `&endDate=${filterEndDate}`;
+        
+        const socialRes = await fetch(searchSocialUrl);
+        const socialJson = await socialRes.json();
+        if (socialJson.status === 'success' && Array.isArray(socialJson.data)) {
+            for (let row of socialJson.data) {
+                if (!row['Full name'] && !row['Full Name']) continue;
+                let name = row['Full name'] || row['Full Name'] || '';
+                if (!isValidLeadName(name)) continue;
+                let phone = cleanPhoneNumber(row['Contact'] || row['Contact No.'] || '');
+                allResults.push({
+                    id: `social_${phone || Date.now()}`,
+                    platform: row['platform'] || row['Platform'] || 'Social Media', 
+                    sourceType: 'social',
+                    name: name, 
+                    phone: phone || 'No Phone', 
+                    vehicle: row['Vehicle'] || '', 
+                    service: row['service'] || row['Service'] || '',
+                    date: row['Date'] ? normalizeDateToYMD(row['Date']) : '',
+                    source: row['Source'] || row['platform'] || 'Social Media',
+                    call1Date: normalizeDateToYMD(row['Call 1 date']) || '', 
+                    call1Status: row['Call 1 Status'] || 'Pending',
+                    call2Date: normalizeDateToYMD(row['Call 2 date']) || '', 
+                    call2Status: row['Call 2 Status'] || 'Pending',
+                    call3Date: normalizeDateToYMD(row['Call 3 date']) || '', 
+                    call3Status: row['Call 3 Status'] || 'Pending',
+                    confirmDate: normalizeDateToYMD(row['Confirmation Call Date']) || '',
+                    converted: row['Status'] === 'Converted', 
+                    lost: row['Status'] === 'Lost',
+                    structuredData: {
+                        services: row['Service Required'] ? row['Service Required'].split(',').map(s=>s.trim()) : [],
+                        vehicleAgeMonths: row['Vehicle Age (Month)'] || '',
+                        estimatedAmount: row['Estimated Amount'] || '',
+                        budget: row['Customer Budget'] || '',
+                        interestLevel: row['Interest Level'] ? parseInt(row['Interest Level']) : null,
+                        nearestLocation: row['Nearest Location'] || '',
+                        fromHyderabad: row['From Hyderabad?'] || '',
+                        masterDataCorrect: row['Master Data Correct?'] || '',
+                        additionalNotes: row['Additional Notes'] || '',
+                        source: row['Source'] || row['platform'] || 'Social Media'
+                    }
+                });
+            }
+        }
+        
+        // Search walkin/call leads
+        const wcSearchUrl = `${WALKIN_CALL_WEB_APP_URL}?search=${encodeURIComponent(query)}`;
+        const wcRes = await fetch(wcSearchUrl);
+        const wcJson = await wcRes.json();
+        if (wcJson.status === 'success' && Array.isArray(wcJson.data)) {
+            for (let row of wcJson.data) {
+                let platform = (row['platform'] || '').toString().trim();
+                if (!platform) continue;
+                let name = row['Full name'] || '';
+                if (!isValidLeadName(name)) continue;
+                let phone = cleanPhoneNumber(row['Contact'] || row['Contact No.'] || '');
+                allResults.push({
+                    id: `wc_${phone || Date.now()}`,
+                    platform: platform, 
+                    sourceType: platform === 'Call' ? 'call' : 'walkin',
+                    name: name, 
+                    phone: phone || 'No Phone', 
+                    vehicle: row['Vehicle'] || '', 
+                    service: row['service'] || '',
+                    date: row['Date'] ? normalizeDateToYMD(row['Date']) : '',
+                    source: row['Source'] || platform || '',
+                    call1Date: normalizeDateToYMD(row['Call 1 date']) || '', 
+                    call1Status: row['Call 1 Status'] || 'Pending',
+                    call2Date: normalizeDateToYMD(row['Call 2 date']) || '', 
+                    call2Status: row['Call 2 Status'] || 'Pending',
+                    call3Date: normalizeDateToYMD(row['Call 3 date']) || '', 
+                    call3Status: row['Call 3 Status'] || 'Pending',
+                    confirmDate: normalizeDateToYMD(row['Confirmation Call Date']) || '',
+                    converted: row['Status'] === 'Converted', 
+                    lost: row['Status'] === 'Lost',
+                    structuredData: {
+                        services: row['Service Required'] ? row['Service Required'].split(',').map(s=>s.trim()) : [],
+                        vehicleAgeMonths: row['Vehicle Age (Month)'] || '',
+                        estimatedAmount: row['Estimated Amount'] || '',
+                        budget: row['Customer Budget'] || '',
+                        interestLevel: row['Interest Level'] ? parseInt(row['Interest Level']) : null,
+                        nearestLocation: row['Nearest Location'] || '',
+                        fromHyderabad: row['From Hyderabad?'] || '',
+                        masterDataCorrect: row['Master Data Correct?'] || '',
+                        additionalNotes: row['Additional Notes'] || '',
+                        source: row['Source'] || platform || ''
+                    }
+                });
+            }
+        }
+        
+        allResults.sort((a, b) => {
+            const dateA = a.date || '';
+            const dateB = b.date || '';
+            if (dateA > dateB) return -1;
+            if (dateA < dateB) return 1;
+            return 0;
+        });
+        
+        socialLeads = allResults.filter(l => l.sourceType === 'social');
+        walkinLeads = allResults.filter(l => l.sourceType === 'walkin');
+        callLeads = allResults.filter(l => l.sourceType === 'call');
+        allCombined = allResults;
+        allCombined.forEach(l => l.score = calculateScore(l));
+        
+        const countDisplay = document.getElementById('searchResultsCount');
+        countDisplay.style.display = 'inline';
+        countDisplay.textContent = `${allResults.length} result${allResults.length !== 1 ? 's' : ''}`;
+        
+        renderAll();
+        showToast(`🔍 Found ${allResults.length} results for "${query}"`);
+        
+    } catch (e) {
+        console.error('Search error:', e);
+        showToast('❌ Error searching data', true);
+    }
+}
+
+    // ===== RENDER FUNCTIONS =====
+    function renderDashboard() {
+        const total = allCombined.length, active = allCombined.filter(l => !l.lost && !l.converted).length;
+        const converted = allCombined.filter(l => l.converted).length, lost = allCombined.filter(l => l.lost).length;
+        let picked = 0, calls = 0;
+        allCombined.forEach(l => {
+            if (l.call1Status === 'Picked') picked++;
+            if (l.call1Status === 'Picked' || l.call1Status === 'Not Picked') calls++;
+            if (l.call2Status === 'Picked') picked++;
+            if (l.call2Status === 'Picked' || l.call2Status === 'Not Picked') calls++;
+            if (l.call3Status === 'Picked') picked++;
+            if (l.call3Status === 'Picked' || l.call3Status === 'Not Picked') calls++;
+        });
+        const rate = calls ? Math.round((picked / calls) * 100) : 0;
+        document.getElementById('totalLeads').innerText = total;
+        document.getElementById('activeLeads').innerText = active;
+        document.getElementById('pickRate').innerText = `${rate}%`;
+        document.getElementById('convertedCount').innerText = converted;
+        document.getElementById('lostCount').innerText = lost;
+        document.getElementById('socialCount').innerText = socialLeads.length;
+        document.getElementById('walkinCount').innerText = walkinLeads.length;
+        document.getElementById('callCount').innerText = callLeads.length;
+        document.getElementById('followupCount').innerText = getFollowupsCount();
+    }
+
+    function getWorkspaceHTML(lead) {
+        const data = lead.structuredData || {};
+        const nextAct = getNextAction(lead);
+        const isCall = (lead.platform === 'Call');
+        const isSocial = (lead.sourceType === 'social');
+        
+        return `<div class="space-y-4 p-4 bg-[#F7F8FA] rounded-xl">
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-[#E4E9EE]">
+                <h4 class="font-bold mb-3 flex items-center gap-2 text-[#1A1A1A]">
+                    <i class="fas fa-edit text-[#004C97]"></i> Edit Customer Information
+                    <span class="text-xs text-[#5E6A77] font-normal ml-2">(Fill during call)</span>
+                </h4>
+                
+                ${!isSocial ? `
+                <div class="grid grid-cols-1 gap-3 mb-4">
+                    <div class="section-divider">
+                        <span class="section-label">Lead Source Location</span>
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#5E6A77] font-medium">Source Location</label>
+                        <select id="source_${lead.id}" class="form-select text-sm">
+                            <option value="">Select Source</option>
+                            ${sourceOptions.map(s => `<option ${data.source === s ? 'selected' : ''}>${s}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+                ` : ''}
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    <div class="md:col-span-2 section-divider">
+                        <span class="section-label">Service & Vehicle Details</span>
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#5E6A77] font-medium">Services Required</label>
+                        <div class="checkbox-group">
+                            ${serviceOptions.map(s => `<label class="checkbox-option text-xs"><input type="checkbox" id="service_${lead.id}_${s.replace(/\s/g,'')}" ${data.services?.includes(s) ? 'checked' : ''}> ${s}</label>`).join('')}
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#5E6A77] font-medium">Vehicle Age (Months)</label>
+                        <input type="number" id="vehicleAge_${lead.id}" value="${data.vehicleAgeMonths || ''}" placeholder="e.g., 12" class="form-input text-sm" />
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#5E6A77] font-medium">Estimated Amount (₹)</label>
+                        <input type="number" id="estimatedAmount_${lead.id}" value="${data.estimatedAmount || ''}" placeholder="e.g., 25000" class="form-input text-sm" />
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#5E6A77] font-medium">Customer Budget</label>
+                        <select id="budget_${lead.id}" class="form-select text-sm">
+                            <option value="">Select Budget</option>
+                            ${budgetRanges.map(b => `<option ${data.budget === b ? 'selected' : ''}>${b}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                    <div class="md:col-span-2 section-divider">
+                        <span class="section-label">Customer Information</span>
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#5E6A77] font-medium">Interest Level (1-5)</label>
+                        <select id="interest_${lead.id}" class="form-select text-sm">
+                            <option value="">Select</option>
+                            ${[1,2,3,4,5].map(l => `<option ${data.interestLevel == l ? 'selected' : ''}>${l}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#5E6A77] font-medium">Nearest Location</label>
+                        <select id="nearestLocation_${lead.id}" class="form-select text-sm">
+                            <option value="">Select Location</option>
+                            ${locationOptions.map(o => `<option ${data.nearestLocation === o ? 'selected' : ''}>${o}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#5E6A77] font-medium">From Hyderabad?</label>
+                        <select id="fromHyderabad_${lead.id}" class="form-select text-sm">
+                            <option value="">Select</option>
+                            ${yesNoOptions.map(o => `<option ${data.fromHyderabad === o ? 'selected' : ''}>${o}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#5E6A77] font-medium">Master Data Correct?</label>
+                        <select id="masterData_${lead.id}" class="form-select text-sm">
+                            <option value="">Select</option>
+                            ${masterDataOptions.map(o => `<option ${data.masterDataCorrect === o ? 'selected' : ''}>${o}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 gap-3">
+                    <div class="section-divider">
+                        <span class="section-label">Additional Notes</span>
+                    </div>
+                    <div>
+                        <label class="text-xs text-[#5E6A77] font-medium">Notes from Call</label>
+                        <textarea id="notes_${lead.id}" rows="3" class="form-textarea text-sm" placeholder="Enter any additional notes...">${escapeHtml(data.additionalNotes || '')}</textarea>
+                    </div>
+                </div>
+
+                <button onclick="saveStructuredData('${lead.id}')" class="w-full mt-4 py-2.5 bg-[#004C97] hover:bg-[#003A73] text-white rounded-xl text-sm font-semibold transition">
+                    <i class="fas fa-save mr-1"></i> Save Information
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-[#E4E9EE]">
+                <h4 class="font-bold mb-2 text-[#1A1A1A]">📞 Call Progress</h4>
+                <div class="grid grid-cols-4 gap-2 text-center text-xs">
+                    <div class="p-2 rounded ${lead.call1Status === 'Picked' ? 'bg-green-100' : lead.call1Status === 'Not Picked' ? 'bg-red-100' : 'bg-[#F0F2F5]'}">
+                        <b>Call 1</b><br>${isCall ? 'Skipped' : lead.call1Status}<br>${formatDateForDisplay(lead.call1Date)}
+                    </div>
+                    <div class="p-2 rounded ${lead.call2Status === 'Picked' ? 'bg-green-100' : lead.call2Status === 'Not Picked' ? 'bg-red-100' : 'bg-[#F0F2F5]'}">
+                        <b>Call 2</b><br>${lead.call2Status}<br>${formatDateForDisplay(lead.call2Date)}
+                    </div>
+                    <div class="p-2 rounded ${lead.call3Status === 'Picked' ? 'bg-green-100' : lead.call3Status === 'Not Picked' ? 'bg-red-100' : 'bg-[#F0F2F5]'}">
+                        <b>Call 3</b><br>${lead.call3Status}<br>${formatDateForDisplay(lead.call3Date)}
+                    </div>
+                    <div class="p-2 rounded ${lead.converted ? 'bg-green-200' : lead.confirmDate ? 'bg-yellow-100' : 'bg-[#F0F2F5]'}">
+                        <b>Confirm</b><br>${lead.converted ? 'Done' : lead.confirmDate ? 'Scheduled' : 'Pending'}<br>${formatDateForDisplay(lead.confirmDate)}
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-[#E4E9EE]">
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="quickUpdate('${lead.id}')" class="py-2.5 bg-[#1A7A4B] hover:bg-[#14633B] text-white rounded-xl text-sm font-semibold transition">✅ ${nextAct} Picked</button>
+                    <button onclick="quickUpdate('${lead.id}', 'Not Picked')" class="py-2.5 bg-[#CC092F] hover:bg-[#A80726] text-white rounded-xl text-sm font-semibold transition">❌ Not Picked</button>
+                </div>
+                ${nextAct === 'Confirmation' && !lead.converted ? `<button onclick="quickUpdate('${lead.id}', 'Convert')" class="w-full mt-3 py-2.5 bg-[#004C97] hover:bg-[#003A73] text-white font-bold rounded-xl transition">🏆 Confirm Conversion (+70)</button>` : ''}
+                <div class="mt-3 flex gap-2">
+                    <input type="date" id="scheduleDate-${lead.id}" class="border border-[#D0D7DE] rounded-xl p-2 text-sm flex-1 form-input" />
+                    <button onclick="scheduleForLead('${lead.id}')" class="px-4 py-2 bg-[#1A1A1A] hover:bg-[#2C3E50] text-white rounded-xl text-sm transition">Schedule</button>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <a href="tel:${lead.phone}" class="flex-1 text-center py-2.5 bg-[#1A1A1A] hover:bg-[#2C3E50] text-white rounded-xl text-sm transition">📞 Call</a>
+                    <a href="https://wa.me/${lead.phone}" target="_blank" class="flex-1 text-center py-2.5 bg-[#1A7A4B] hover:bg-[#14633B] text-white rounded-xl text-sm transition">💬 WhatsApp</a>
+                    <button onclick="markLeadLost('${lead.id}')" class="px-3 py-2 text-[#5E6A77] text-sm hover:text-[#CC092F] transition">Archive</button>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function renderCustomerContent() {
+        let leads = [], showPlus = false, title = '';
+        if (currentCustomerTab === 'social') { 
+            leads = socialLeads; 
+            showPlus = false; 
+            title = '📱 Social Media Leads'; 
+        } else if (currentCustomerTab === 'walkin') { 
+            leads = walkinLeads; 
+            showPlus = true; 
+            title = '🚪 Walk-in Leads'; 
+        } else { 
+            leads = callLeads; 
+            showPlus = true; 
+            title = '📞 Call Leads'; 
+        }
+        
+        leads = [...leads].sort((a, b) => (b.score || 0) - (a.score || 0));
+        let html = `<div class="mb-6 flex justify-between items-center flex-wrap gap-3"><h3 class="text-xl font-bold text-[#1A1A1A]">${title}</h3>`;
+        if (showPlus) html += `<button onclick="openNewLeadModal('${currentCustomerTab === 'walkin' ? 'Walk-in' : 'Call'}')" class="btn-primary px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition"><i class="fas fa-plus mr-1"></i> New ${currentCustomerTab === 'walkin' ? 'Walk-in' : 'Call'}</button>`;
+        html += `</div><div class="space-y-3">`;
+        if (leads.length === 0) {
+            html += `<div class="empty-state"><i class="fas fa-inbox"></i><p>No ${title.toLowerCase()} found.</p></div>`;
+        } else {
+            leads.forEach(lead => {
+                const wsId = `ws_customer_${lead.id}`;
+                const iconId = `icon_customer_${lead.id}`;
+                const isExp = (expandedId === lead.id && expandedSection === 'customer');
+                const nextAction = getNextAction(lead);
+                const due = getDueFollowUp(lead);
+                const isArchived = lead.lost === true;
+                
+                // Card style - darker if archived
+                const cardBg = isArchived ? 'bg-gray-200' : 'bg-white';
+                const cardOpacity = isArchived ? 'opacity-85' : 'opacity-100';
+                const borderStyle = isArchived ? 'border-gray-400 border-2' : 'border-[#E4E9EE]';
+                
+                let badgeHtml = '';
+                if (due) { const bc = due.badge === 'blue' ? 'badge-blue' : 'badge-red'; badgeHtml = `<div class="notification-badge ${bc}" title="${due.label}${due.isOverdue ? ' (OVERDUE!)' : ''}">${due.icon}</div>`; }
+                
+                // Archived badge
+                let archivedBadge = '';
+                if (isArchived) {
+                    archivedBadge = `<span class="ml-2 text-xs bg-gray-600 text-white px-2 py-0.5 rounded-full font-medium">🗄️ Archived</span>`;
+                }
+                
+                html += `<div class="border ${borderStyle} rounded-xl ${cardBg} ${cardOpacity} shadow-sm overflow-hidden transition-all duration-300" style="position:relative;">
+                    <div class="flex justify-between items-center p-4 lead-row" style="min-height:70px;">
+                        ${badgeHtml}
+                        <div class="flex-1 lead-click-area" onclick="toggleLead('${lead.id}', 'customer')" style="margin-left:35px; cursor:pointer;">
+                            <div class="font-bold text-[#1A1A1A]">${escapeHtml(lead.name)} ${archivedBadge}</div>
+                            <div class="text-sm ${isArchived ? 'text-gray-600' : 'text-[#5E6A77]'}">📞 ${lead.phone} • ${lead.vehicle || '-'} • ${lead.service || '-'}</div>
+                            <div class="text-xs ${isArchived ? 'text-gray-500' : 'text-[#8A9AA8]'}">Lead: ${formatDateForDisplay(lead.date)}</div>
+                            ${isArchived ? '<div class="text-xs text-gray-500 mt-1"><i class="fas fa-archive mr-1"></i> Archived</div>' : ''}
+                        </div>
+                        <div class="text-right" style="flex-shrink: 0; margin-left: 12px;">
+                            <span class="status-badge ${isArchived ? 'bg-gray-500 text-white' : 'bg-[#E8EBEE] text-[#1A1A1A]'}">${isArchived ? 'Archived' : nextAction}</span>
+                            <div class="text-xs mt-1 text-[#5E6A77]">⭐ ${lead.score || 0}</div>
+                            <i id="${iconId}" class="fas fa-chevron-down ml-3 toggle-icon ${isExp ? 'rotated' : ''}" onclick="event.stopPropagation(); toggleLead('${lead.id}', 'customer')" style="font-size:14px; cursor:pointer;"></i>
+                        </div>
+                    </div>
+                    <div id="${wsId}" class="workspace ${isExp ? 'expanded' : 'collapsed'}">${getWorkspaceHTML(lead)}</div>
+                </div>`;
+            });
+        }
+        html += `</div>`;
+        document.getElementById('customerContent').innerHTML = html;
+        
+        // Add pagination controls after rendering
+        renderPagination();
+    }
+
+    function renderFollowups() {
+        const today = getTodayDateString(), yest = getYesterdayDateString();
+        let todayLeads = allCombined.filter(lead => {
+            if (lead.lost || lead.converted) return false;
+            const c1 = normalizeDateToYMD(lead.call1Date), c2 = normalizeDateToYMD(lead.call2Date), c3 = normalizeDateToYMD(lead.call3Date), cf = normalizeDateToYMD(lead.confirmDate);
+            return ((c1 === today || c1 === yest) && lead.call1Status === 'Pending') || ((c2 === today || c2 === yest) && lead.call2Status === 'Pending') || ((c3 === today || c3 === yest) && lead.call3Status === 'Pending') || ((cf === today || cf === yest) && !lead.converted);
+        });
+        
+        todayLeads.sort((a, b) => {
+            const aD = normalizeDateToYMD(a.call1Date || a.call2Date || a.call3Date || a.confirmDate);
+            const bD = normalizeDateToYMD(b.call1Date || b.call2Date || b.call3Date || b.confirmDate);
+            if (aD === yest && bD !== yest) return -1; if (bD === yest && aD !== yest) return 1; return 0;
+        });
+        const container = document.getElementById('followupsList');
+        if (todayLeads.length === 0) {
+            container.innerHTML = `<div class="empty-state"><i class="fas fa-calendar-day"></i><p>No follow-ups for today or yesterday</p></div>`;
+        } else {
+            let html = '';
+            todayLeads.forEach(lead => {
+                const wsId = `ws_followup_${lead.id}`;
+                const iconId = `icon_followup_${lead.id}`;
+                const isExp = (expandedId === lead.id && expandedSection === 'followup');
+                const isOverdue = normalizeDateToYMD(lead.call1Date || lead.call2Date || lead.call3Date || lead.confirmDate) === yest;
+                const rowClass = isOverdue ? 'followup-overdue' : 'followup-highlight';
+                html += `<div class="border border-[#E4E9EE] rounded-xl bg-white shadow-sm overflow-hidden mb-3 ${rowClass}">
+                    <div class="p-4 lead-row" style="min-height:70px;">
+                        <div class="flex justify-between items-start flex-wrap gap-2 w-full">
+                            <div class="flex-1 lead-click-area" onclick="toggleLead('${lead.id}', 'followup')" style="cursor:pointer; min-width:0;">
+                                <div class="font-bold text-[#1A1A1A] flex items-center gap-2">
+                                    ${escapeHtml(lead.name)}
+                                    ${isOverdue ? '<span class="text-xs bg-[#CC092F] text-white px-2 py-0.5 rounded-full font-bold">⚠️ OVERDUE</span>' : '<span class="text-xs bg-[#004C97] text-white px-2 py-0.5 rounded-full font-bold">Due Today</span>'}
+                                </div>
+                                <div class="text-sm text-[#5E6A77]">📞 ${lead.phone} • ${lead.platform}</div>
+                                <div class="text-xs text-[#8A9AA8] mt-1">Scheduled: ${getNextAction(lead)}</div>
+                            </div>
+                            <div class="flex gap-2 flex-wrap items-center" style="flex-shrink: 0;">
+                                <button onclick="event.stopPropagation(); quickUpdate('${lead.id}')" class="px-3 py-1.5 bg-[#1A7A4B] hover:bg-[#14633B] text-white rounded-lg text-xs font-semibold transition"><i class="fas fa-check mr-1"></i> Picked</button>
+                                <button onclick="event.stopPropagation(); quickUpdate('${lead.id}', 'Not Picked')" class="px-3 py-1.5 bg-[#CC092F] hover:bg-[#A80726] text-white rounded-lg text-xs font-semibold transition"><i class="fas fa-times mr-1"></i> Not Picked</button>
+                                <a href="tel:${lead.phone}" onclick="event.stopPropagation();" class="px-3 py-1.5 bg-[#1A1A1A] hover:bg-[#2C3E50] text-white rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"><i class="fas fa-phone"></i> Call</a>
+                                <a href="https://wa.me/${lead.phone}" target="_blank" onclick="event.stopPropagation();" class="px-3 py-1.5 bg-[#1A7A4B] hover:bg-[#14633B] text-white rounded-lg text-xs font-semibold transition inline-flex items-center gap-1"><i class="fab fa-whatsapp"></i> WhatsApp</a>
+                                <i id="${iconId}" class="fas fa-chevron-down ml-2 toggle-icon ${isExp ? 'rotated' : ''}" onclick="event.stopPropagation(); toggleLead('${lead.id}', 'followup')" style="font-size:14px; cursor:pointer;"></i>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="${wsId}" class="workspace ${isExp ? 'expanded' : 'collapsed'}">${getWorkspaceHTML(lead)}</div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+        document.getElementById('todayDateDisplay').innerText = `${getTodayDisplay()} (Includes overdue from yesterday)`;
+    }
+
+    function renderAll() { renderDashboard(); renderCustomerContent(); renderFollowups(); }
+
+    // ===== EXPORT FUNCTIONS =====
+    function exportToExcel() {
+        if (allCombined.length === 0) { showToast('No data to export', true); return; }
+        try {
+            const wb = XLSX.utils.book_new();
+            const socialData = socialLeads.map(l => ({
+                'Date': l.date || '', 
+                'platform': l.platform || '', 
+                'service': l.service || '',
+                'Vehicle': l.vehicle || '', 
+                'Full name': l.name || '', 
+                'Contact': l.phone || '',
+                'Source': l.structuredData?.source || l.source || '',
+                'Service Required': l.structuredData?.services?.join(', ') || '',
+                'Nearest Location': l.structuredData?.nearestLocation || '',
+                'Vehicle Age (Month)': l.structuredData?.vehicleAgeMonths || '',
+                'Estimated Amount': l.structuredData?.estimatedAmount || '',
+                'Customer Budget': l.structuredData?.budget || '',
+                'Interest Level': l.structuredData?.interestLevel || '',
+                'From Hyderabad?': l.structuredData?.fromHyderabad || '',
+                'Master Data Correct?': l.structuredData?.masterDataCorrect || '',
+                'Additional Notes': l.structuredData?.additionalNotes || '',
+                'Call 1 date': l.call1Date || '', 
+                'Call 1 Status': l.call1Status || '', 
+                'Call 2 date': l.call2Date || '', 
+                'Call 2 Status': l.call2Status || '',
+                'Call 3 date': l.call3Date || '', 
+                'Call 3 Status': l.call3Status || '', 
+                'Confirmation Call Date': l.confirmDate || '',
+                'Confirmation call': l.converted ? 'Completed' : (l.confirmDate ? 'Scheduled' : 'Pending'),
+                'Status': l.converted ? 'Converted' : (l.lost ? 'Lost' : 'Active'), 
+                'Next Action': getNextAction(l)
+            }));
+            const wcData = allCombined.filter(l => l.sourceType !== 'social').map(l => ({
+                'Date': l.date || '', 
+                'platform': l.platform || '', 
+                'service': l.service || '',
+                'Vehicle': l.vehicle || '', 
+                'Full name': l.name || '', 
+                'Contact': l.phone || '',
+                'Source': l.structuredData?.source || l.source || '',
+                'Service Required': l.structuredData?.services?.join(', ') || '',
+                'Nearest Location': l.structuredData?.nearestLocation || '',
+                'Vehicle Age (Month)': l.structuredData?.vehicleAgeMonths || '',
+                'Estimated Amount': l.structuredData?.estimatedAmount || '',
+                'Customer Budget': l.structuredData?.budget || '',
+                'Interest Level': l.structuredData?.interestLevel || '',
+                'From Hyderabad?': l.structuredData?.fromHyderabad || '',
+                'Master Data Correct?': l.structuredData?.masterDataCorrect || '',
+                'Additional Notes': l.structuredData?.additionalNotes || '',
+                'Call 1 date': l.call1Date || '', 
+                'Call 1 Status': l.call1Status || '', 
+                'Call 2 date': l.call2Date || '', 
+                'Call 2 Status': l.call2Status || '',
+                'Call 3 date': l.call3Date || '', 
+                'Call 3 Status': l.call3Status || '', 
+                'Confirmation Call Date': l.confirmDate || '',
+                'Confirmation call': l.converted ? 'Completed' : (l.confirmDate ? 'Scheduled' : 'Pending'),
+                'Status': l.converted ? 'Converted' : (l.lost ? 'Lost' : 'Active'), 
+                'Next Action': getNextAction(l)
+            }));
+            if (socialData.length > 0) { const ws = XLSX.utils.json_to_sheet(socialData); XLSX.utils.book_append_sheet(wb, ws, 'Social Media'); }
+            if (wcData.length > 0) { const ws = XLSX.utils.json_to_sheet(wcData); XLSX.utils.book_append_sheet(wb, ws, 'Walk-in & Call'); }
+            const allData = allCombined.map(l => ({
+                'Date': l.date || '', 
+                'platform': l.platform || '', 
+                'service': l.service || '',
+                'Vehicle': l.vehicle || '', 
+                'Full name': l.name || '', 
+                'Contact': l.phone || '',
+                'Source': l.structuredData?.source || l.source || '',
+                'Service Required': l.structuredData?.services?.join(', ') || '',
+                'Nearest Location': l.structuredData?.nearestLocation || '',
+                'Vehicle Age (Month)': l.structuredData?.vehicleAgeMonths || '',
+                'Estimated Amount': l.structuredData?.estimatedAmount || '',
+                'Customer Budget': l.structuredData?.budget || '',
+                'Interest Level': l.structuredData?.interestLevel || '',
+                'From Hyderabad?': l.structuredData?.fromHyderabad || '',
+                'Master Data Correct?': l.structuredData?.masterDataCorrect || '',
+                'Additional Notes': l.structuredData?.additionalNotes || '',
+                'Call 1 date': l.call1Date || '', 
+                'Call 1 Status': l.call1Status || '', 
+                'Call 2 date': l.call2Date || '', 
+                'Call 2 Status': l.call2Status || '',
+                'Call 3 date': l.call3Date || '', 
+                'Call 3 Status': l.call3Status || '', 
+                'Confirmation Call Date': l.confirmDate || '',
+                'Confirmation call': l.converted ? 'Completed' : (l.confirmDate ? 'Scheduled' : 'Pending'),
+                'Status': l.converted ? 'Converted' : (l.lost ? 'Lost' : 'Active'), 
+                'Next Action': getNextAction(l)
+            }));
+            const wsAll = XLSX.utils.json_to_sheet(allData);
+            XLSX.utils.book_append_sheet(wb, wsAll, 'All Leads');
+            XLSX.writeFile(wb, `3M_CRM_Export_${getTodayDisplay().replace(/\//g, '-')}.xlsx`);
+            showToast(`✅ Exported ${allCombined.length} leads`);
+        } catch (e) { showToast(`❌ Export failed`, true); }
+    }
+
+    function exportFollowupsToExcel() {
+        const today = getTodayDateString(), yest = getYesterdayDateString();
+        const leads = allCombined.filter(lead => {
+            if (lead.lost || lead.converted) return false;
+            const c1 = normalizeDateToYMD(lead.call1Date), c2 = normalizeDateToYMD(lead.call2Date), c3 = normalizeDateToYMD(lead.call3Date), cf = normalizeDateToYMD(lead.confirmDate);
+            return ((c1 === today || c1 === yest) && lead.call1Status === 'Pending') || ((c2 === today || c2 === yest) && lead.call2Status === 'Pending') || ((c3 === today || c3 === yest) && lead.call3Status === 'Pending') || ((cf === today || cf === yest) && !lead.converted);
+        });
+        if (leads.length === 0) { showToast('No follow-ups to export', true); return; }
+        try {
+            const data = leads.map(l => {
+                let due = '';
+                const c1 = normalizeDateToYMD(l.call1Date), c2 = normalizeDateToYMD(l.call2Date), c3 = normalizeDateToYMD(l.call3Date), cf = normalizeDateToYMD(l.confirmDate);
+                if ((c1 === today || c1 === yest) && l.call1Status === 'Pending') due = c1;
+                else if ((c2 === today || c2 === yest) && l.call2Status === 'Pending') due = c2;
+                else if ((c3 === today || c3 === yest) && l.call3Status === 'Pending') due = c3;
+                else if ((cf === today || cf === yest) && !l.converted) due = cf;
+                return { 
+                    'Full Name': l.name || '', 
+                    'Contact': l.phone || '', 
+                    'Platform': l.platform || '', 
+                    'Vehicle': l.vehicle || '', 
+                    'Service': l.service || '', 
+                    'Due Date': formatDateForDisplay(due), 
+                    'Status': due === yest ? 'OVERDUE' : 'Due Today', 
+                    'Next Action': getNextAction(l), 
+                    'Call 1 Status': l.call1Status || '', 
+                    'Call 2 Status': l.call2Status || '', 
+                    'Call 3 Status': l.call3Status || '', 
+                    'Confirmation': l.converted ? 'Converted' : (l.confirmDate ? 'Scheduled' : 'Pending')
+                };
+            });
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(data);
+            ws['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+            XLSX.utils.book_append_sheet(wb, ws, 'Follow-ups');
+            XLSX.writeFile(wb, `3M_Followups_${getTodayDisplay().replace(/\//g, '-')}.xlsx`);
+            showToast(`✅ Exported ${leads.length} follow-ups`);
+        } catch (e) { showToast(`❌ Export failed`, true); }
+    }
+
+    // ===== WINDOW FUNCTIONS =====
+    window.saveStructuredData = async (leadId) => {
+        let lead = allCombined.find(l => l.id == leadId);
+        if (!lead) { 
+            showToast('Lead not found', true); 
+            return; 
+        }
+        
+        const selectedServices = [];
+        serviceOptions.forEach(s => { 
+            const cb = document.getElementById(`service_${leadId}_${s.replace(/\s/g, '')}`); 
+            if (cb && cb.checked) selectedServices.push(s); 
+        });
+        
+        lead.structuredData = lead.structuredData || {};
+        lead.structuredData.services = selectedServices;
+        lead.structuredData.vehicleAgeMonths = document.getElementById(`vehicleAge_${leadId}`)?.value || '';
+        lead.structuredData.estimatedAmount = document.getElementById(`estimatedAmount_${leadId}`)?.value || '';
+        lead.structuredData.budget = document.getElementById(`budget_${leadId}`)?.value || '';
+        lead.structuredData.interestLevel = document.getElementById(`interest_${leadId}`)?.value || '';
+        lead.structuredData.nearestLocation = document.getElementById(`nearestLocation_${leadId}`)?.value || '';
+        lead.structuredData.fromHyderabad = document.getElementById(`fromHyderabad_${leadId}`)?.value || '';
+        lead.structuredData.masterDataCorrect = document.getElementById(`masterData_${leadId}`)?.value || '';
+        lead.structuredData.additionalNotes = document.getElementById(`notes_${leadId}`)?.value || '';
+        lead.structuredData.source = document.getElementById(`source_${leadId}`)?.value || lead.source || lead.platform || '';
+        
+        showToast('Saving...');
+        const ok = await updateLeadInSheet(lead);
+        if (ok) showToast('✅ Customer information saved!'); 
+        else showToast('❌ Save failed.', true);
+        renderAll();
+    };
+
+    window.toggleLead = function(leadId, section) {
+        const wsId = section === 'followup' ? `ws_followup_${leadId}` : `ws_customer_${leadId}`;
+        const iconId = section === 'followup' ? `icon_followup_${leadId}` : `icon_customer_${leadId}`;
+        
+        const ws = document.getElementById(wsId);
+        if (!ws) {
+            console.warn('Workspace not found for:', wsId);
+            return;
+        }
+        
+        if (expandedId && expandedId !== leadId) {
+            const prevWsCustomer = document.getElementById(`ws_customer_${expandedId}`);
+            const prevWsFollowup = document.getElementById(`ws_followup_${expandedId}`);
+            const prevIconCustomer = document.getElementById(`icon_customer_${expandedId}`);
+            const prevIconFollowup = document.getElementById(`icon_followup_${expandedId}`);
+            
+            if (prevWsCustomer) { prevWsCustomer.classList.add('collapsed'); prevWsCustomer.classList.remove('expanded'); }
+            if (prevWsFollowup) { prevWsFollowup.classList.add('collapsed'); prevWsFollowup.classList.remove('expanded'); }
+            if (prevIconCustomer) prevIconCustomer.classList.remove('rotated');
+            if (prevIconFollowup) prevIconFollowup.classList.remove('rotated');
+        }
+        
+        if (expandedId === leadId && expandedSection === section) {
+            ws.classList.add('collapsed');
+            ws.classList.remove('expanded');
+            const icon = document.getElementById(iconId);
+            if (icon) icon.classList.remove('rotated');
+            expandedId = null;
+            expandedSection = null;
+        } else {
+            ws.classList.remove('collapsed');
+            ws.classList.add('expanded');
+            const icon = document.getElementById(iconId);
+            if (icon) icon.classList.add('rotated');
+            expandedId = leadId;
+            expandedSection = section;
+        }
+    };
+
+    window.quickUpdate = async (leadId, action = 'Picked') => {
+        let lead = allCombined.find(l => l.id == leadId);
+        if (!lead) return;
+        const stage = getNextAction(lead);
+        if (action === 'Convert') lead.converted = true;
+        else if (stage === 'Call 1') lead.call1Status = action;
+        else if (stage === 'Call 2') lead.call2Status = action;
+        else if (stage === 'Call 3') lead.call3Status = action;
+        else if (stage === 'Confirmation' && action === 'Picked') lead.converted = true;
+        lead.score = calculateScore(lead);
+        showToast(`Updating ${stage}...`);
+        const ok = await updateLeadInSheet(lead);
+        if (ok) showToast(`✅ ${stage} → ${action}`); else showToast(`❌ Update failed.`, true);
+        renderAll();
+    };
+
+    window.scheduleForLead = async (leadId) => {
+        let lead = allCombined.find(l => l.id == leadId);
+        if (!lead) { showToast('Lead not found'); return; }
+        const dateInput = document.getElementById(`scheduleDate-${leadId}`).value;
+        if (!dateInput) { showToast('Select a date first'); return; }
+        const formatted = normalizeDateToYMD(dateInput);
+        if (!formatted) { showToast('Invalid date'); return; }
+        const stage = getNextAction(lead);
+        if (stage === 'Call 1') { lead.call1Date = formatted; lead.call1Status = 'Pending'; }
+        else if (stage === 'Call 2') { lead.call2Date = formatted; lead.call2Status = 'Pending'; }
+        else if (stage === 'Call 3') { lead.call3Date = formatted; lead.call3Status = 'Pending'; }
+        else if (stage === 'Confirmation') { lead.confirmDate = formatted; }
+        else { showToast(`Cannot schedule for ${stage}`, true); return; }
+        lead.score = calculateScore(lead);
+        showToast(`Scheduling ${stage}...`);
+        const ok = await updateLeadInSheet(lead);
+        if (ok) showToast(`✅ ${stage} set for ${formatDateForDisplay(formatted)}`); else showToast(`❌ Scheduling failed.`, true);
+        renderAll();
+    };
+
+    window.markLeadLost = async (leadId) => {
+        let lead = allCombined.find(l => l.id == leadId);
+        if (lead) { lead.lost = true; showToast(`Archiving...`); const ok = await updateLeadInSheet(lead); if (ok) showToast(`✅ Archived`); else showToast(`❌ Archive failed.`, true); renderAll(); }
+    };
+
+    window.setCustomerTab = function(tab) {
+        currentCustomerTab = tab; 
+        expandedId = null;
+        expandedSection = null;
+        document.querySelectorAll('.customer-tab-btn').forEach(b => b.classList.remove('active', 'bg-[#004C97]', 'text-white'));
+        if (tab === 'social') document.getElementById('tabSocial').classList.add('active', 'bg-[#004C97]', 'text-white');
+        else if (tab === 'walkin') document.getElementById('tabWalkin').classList.add('active', 'bg-[#004C97]', 'text-white');
+        else if (tab === 'call') document.getElementById('tabCall').classList.add('active', 'bg-[#004C97]', 'text-white');
+        renderCustomerContent();
+    };
+
+    window.openNewLeadModal = (type) => {
+        document.getElementById('newLeadType').value = type;
+        document.getElementById('modalTitle').innerText = type === 'Walk-in' ? '🚪 New Walk-in' : '📞 New Call';
+        document.getElementById('newLeadForm').reset();
+        document.getElementById('newLeadModal').classList.remove('hidden');
+    };
+    window.closeModal = () => document.getElementById('newLeadModal').classList.add('hidden');
+    document.getElementById('newLeadForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const type = document.getElementById('newLeadType').value;
+        const form = { 
+            name: document.getElementById('newName').value, 
+            phone: document.getElementById('newPhone').value, 
+            vehicle: document.getElementById('newVehicle').value, 
+            service: document.getElementById('newService').value,
+            source: document.getElementById('newSource').value,
+            vehicleAge: document.getElementById('newVehicleAge').value, 
+            quotedAmount: document.getElementById('newQuotedAmount').value, 
+            budget: document.getElementById('newBudget').value, 
+            notes: document.getElementById('newNotes').value 
+        };
+        await saveNewLead(type, form);
+        closeModal();
+    });
+
+    window.showPage = function(page) {
+        ['dashboard', 'customerData', 'followups'].forEach(p => document.getElementById(`${p}Page`).classList.add('hidden'));
+        document.getElementById(`${page}Page`).classList.remove('hidden');
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active-sidebar'));
+        document.getElementById(`nav-${page}`).classList.add('active-sidebar');
+        if (page === 'customerData') renderCustomerContent();
+        if (page === 'followups') renderFollowups();
+        if (page === 'dashboard') renderDashboard();
+    };
+
+    // Make pagination functions globally accessible
+    window.goToNextPage = goToNextPage;
+    window.goToPreviousPage = goToPreviousPage;
+    window.goToFirstPage = goToFirstPage;
+    window.applyDateFilter = applyDateFilter;
+    window.resetDateFilter = resetDateFilter;
+
+    // ===== SEARCH FUNCTIONALITY =====
+    // ===== SEARCH WITH DEBOUNCE - SUPER FAST =====
+let searchTimeout = null;
+let previousSearchTerm = '';
+
+function performSearch() {
+    const input = document.getElementById('globalSearchInput');
+    const query = input.value.trim();
+    currentSearchQuery = query;
+    
+    const clearBtn = document.getElementById('clearSearch');
+    const countDisplay = document.getElementById('searchResultsCount');
+    const badge = document.getElementById('searchModeBadge');
+    
+    // Clear previous timeout
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+        searchTimeout = null;
+    }
+    
+    if (query === '') {
+        clearBtn.style.display = 'none';
+        countDisplay.style.display = 'none';
+        badge.style.display = 'none';
+        isSearchMode = false;
+        previousSearchTerm = '';
+        socialOffset = 0;
+        loadDashboardData(false);
+        return;
+    }
+    
+    clearBtn.style.display = 'inline';
+    badge.style.display = 'inline';
+    
+    // ===== INSTANT LOCAL SEARCH (shows results immediately) =====
+    if (allCombined.length > 0) {
+        const lowerQuery = query.toLowerCase();
+        const localResults = allCombined.filter(lead => {
+            const name = (lead.name || '').toLowerCase();
+            const phone = (lead.phone || '').toLowerCase();
+            const vehicle = (lead.vehicle || '').toLowerCase();
+            const service = (lead.service || '').toLowerCase();
+            return name.includes(lowerQuery) || 
+                   phone.includes(lowerQuery) || 
+                   vehicle.includes(lowerQuery) || 
+                   service.includes(lowerQuery);
+        });
+        
+        // Update UI with local results instantly
+        socialLeads = localResults.filter(l => l.sourceType === 'social');
+        walkinLeads = localResults.filter(l => l.sourceType === 'walkin');
+        callLeads = localResults.filter(l => l.sourceType === 'call');
+        allCombined = localResults;
+        allCombined.forEach(l => l.score = calculateScore(l));
+        
+        const countDisplay = document.getElementById('searchResultsCount');
+        countDisplay.style.display = 'inline';
+        countDisplay.textContent = `${localResults.length} result${localResults.length !== 1 ? 's' : ''}`;
+        
+        renderAll();
+        showToast(`🔍 Found ${localResults.length} results for "${query}"`);
+    }
+    
+    // ===== DEBOUNCED SERVER SEARCH (only if needed) =====
+    // Only search server if query is different from previous or after 300ms
+    if (query !== previousSearchTerm) {
+        previousSearchTerm = query;
+        
+        // Debounce - wait 300ms after user stops typing before server search
+        searchTimeout = setTimeout(() => {
+            isSearchMode = true;
+            document.getElementById('searchModeBadge').style.display = 'inline';
+            
+            // Show toast for server search
+            showToast(`🔍 Searching server for "${query}"...`);
+            
+            // Do the actual server search in background
+            searchAllLeads(query);
+        }, 300);
+    }
+}
+
+    document.getElementById('globalSearchInput').addEventListener('input', performSearch);
+    document.getElementById('clearSearch').addEventListener('click', function() {
+        document.getElementById('globalSearchInput').value = '';
+        currentSearchQuery = '';
+        isSearchMode = false;
+        socialOffset = 0;
+        document.getElementById('clearSearch').style.display = 'none';
+        document.getElementById('searchResultsCount').style.display = 'none';
+        document.getElementById('searchModeBadge').style.display = 'none';
+        loadDashboardData(false);
+    });
+
+    document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
+    document.getElementById('exportFollowupBtn').addEventListener('click', exportFollowupsToExcel);
+    document.getElementById('refreshBtn').addEventListener('click', async () => {
+        const icon = document.getElementById('refreshIcon');
+        icon.classList.add('refresh-spin');
+        document.getElementById('globalSearchInput').value = '';
+        currentSearchQuery = '';
+        isSearchMode = false;
+        socialOffset = 0;
+        document.getElementById('clearSearch').style.display = 'none';
+        document.getElementById('searchResultsCount').style.display = 'none';
+        document.getElementById('searchModeBadge').style.display = 'none';
+        await loadDashboardData(true);
+        icon.classList.remove('refresh-spin');
+    });
+
+    // ===== INIT =====
+    loadDashboardData(true);
+    showPage('dashboard');
+</script>
+</body>
+</html>
